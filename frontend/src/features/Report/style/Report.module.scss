@@ -1,0 +1,86 @@
+.filterBar {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin-bottom: 16px;
+	flex-wrap: wrap;
+}
+
+.scopeTag {
+	font-size: 12px;
+	font-weight: 600;
+	padding: 3px 10px;
+	border-radius: 999px;
+	background: #eef2ff;
+	color: #4f46e5;
+}
+
+.kpiRow {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: 14px;
+	margin-bottom: 16px;
+
+	@media (max-width: 720px) { grid-template-columns: repeat(2, 1fr); }
+}
+
+.kpi {
+	background: var(--card-bg, #fff);
+	border: 1px solid var(--border, #e5e7eb);
+	border-radius: 12px;
+	padding: 14px 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+
+	span { color: var(--text-muted, #64748b); font-size: 13px; }
+	b { font-size: 20px; font-weight: 800; }
+}
+
+.grid2 {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 16px;
+	margin-bottom: 16px;
+
+	@media (max-width: 900px) { grid-template-columns: 1fr; }
+}
+
+.cardTitle {
+	margin: 0 0 14px;
+	font-size: 15px;
+	font-weight: 700;
+}
+
+// ── Thanh CSS ──
+.funnel {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.barRow {
+	display: grid;
+	grid-template-columns: 110px 1fr auto;
+	align-items: center;
+	gap: 10px;
+}
+
+.barLabel { font-size: 13px; color: var(--text-muted, #64748b); }
+
+.barTrack {
+	height: 18px;
+	background: #f1f5f9;
+	border-radius: 6px;
+	overflow: hidden;
+}
+
+.barFill {
+	display: block;
+	height: 100%;
+	border-radius: 6px;
+	min-width: 2px;
+	transition: width .3s;
+}
+
+.barVal { font-size: 13px; font-weight: 700; text-align: right; min-width: 70px; }

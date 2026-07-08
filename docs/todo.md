@@ -31,7 +31,14 @@ khi đổi schema và tạo/cập nhật `docs/features/<feature>.md` + index kh
 
 ---
 
-## Giai đoạn 2 (backlog — làm sau khi GĐ1 xong)
+## Giai đoạn 2 — HOÀN TẤT
 
-- **Báo cáo phễu + hiệu suất nhóm** (conversion từng bước, nguồn khách, doanh số) + xuất Excel/PDF.
-- **Marketing** (GĐ3): Zalo ZNS/SMS/Email hàng loạt, form thu lead từ web, bản đồ BĐS, mobile/PWA.
+Đã xong toàn bộ GĐ2: **Lịch hẹn dẫn khách** (`appointments` + tick nhắc) · **Giao dịch** (`deals`/`deal_payments`/
+`commissions`: cọc→hợp đồng→hoàn tất, tự đổi status BĐS, hoa hồng) · **Báo cáo** (phễu + nguồn + doanh số +
+hiệu suất nhóm + xuất Excel). Feature notes: `docs/features/{appointment,deal,report}.md`.
+
+> **Xuất PDF** chưa làm (mới có Excel) — nếu cần, thêm sau (hoặc dùng in trình duyệt cho trang Báo cáo).
+
+## Giai đoạn 3 (backlog)
+
+- **Marketing**: Zalo ZNS/SMS/Email hàng loạt, form thu lead từ web, bản đồ BĐS, mobile/PWA.

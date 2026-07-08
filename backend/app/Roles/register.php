@@ -22,6 +22,7 @@ use App\Roles\RoleCapabilitiesCustomer;
 use App\Roles\RoleCapabilitiesDeal;
 use App\Roles\RoleCapabilitiesMatching;
 use App\Roles\RoleCapabilitiesProperty;
+use App\Roles\RoleCapabilitiesReport;
 
 add_filter('role_capabilities_groups', function (array $groups) {
 
@@ -53,6 +54,11 @@ add_filter('role_capabilities_groups', function (array $groups) {
     $groups['deal'] = [
         'label'        => 'Giao dịch',
         'capabilities' => RoleCapabilitiesDeal::all(),
+    ];
+
+    $groups['report'] = [
+        'label'        => 'Báo cáo',
+        'capabilities' => RoleCapabilitiesReport::all(),
     ];
 
     return $groups;

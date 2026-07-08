@@ -159,6 +159,20 @@ Route::namespace('App\Controllers\Api')
 
 /**
 |--------------------------------------------------------------------------
+| Báo cáo (GĐ2) — cần JWT token; gate cap report_* trong controller
+|--------------------------------------------------------------------------
+*/
+Route::namespace('App\Controllers\Api')
+    ->middleware('jwt')
+    ->prefix('api/report')
+    ->group(function ()
+    {
+        Route::get('/export', 'ReportApi@export')->name('api.report.export');   // đặt TRƯỚC '' không cần, nhưng rõ ràng
+        Route::get('', 'ReportApi@index')->name('api.report.index');            // ?from=&to=&assigned_user_id=
+    });
+
+/**
+|--------------------------------------------------------------------------
 | Bất động sản (Kho hàng) — cần JWT token; gate cap trong controller
 |--------------------------------------------------------------------------
 */

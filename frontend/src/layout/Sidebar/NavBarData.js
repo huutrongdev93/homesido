@@ -19,6 +19,7 @@ export const NavBarData = () => {
 	const canMatching = useCan('matching_view');
 	const canAppointment = useCan('appointment_view');
 	const canDeal = useCan('deal_view');
+	const canReport = useCan('report_view');
 	const isAdmin = useIsAdmin();
 
 	// ===== TỔNG QUAN =====
@@ -92,6 +93,16 @@ export const NavBarData = () => {
 			title: 'Khớp lệnh',
 			to: '/matching',
 			icon: <FontAwesomeIcon icon="fa-light fa-arrows-repeat" />,
+			count: 0,
+		});
+	}
+	if (canReport) {
+		business.push({
+			key: 'reports',
+			label: <Link to="/reports">Báo cáo</Link>,
+			title: 'Báo cáo',
+			to: '/reports',
+			icon: <FontAwesomeIcon icon="fa-light fa-chart-line" />,
 			count: 0,
 		});
 	}

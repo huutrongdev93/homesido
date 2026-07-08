@@ -266,6 +266,11 @@ Index: `(customer_id, property_id)` (dedup cặp), `(property_id)`.
 
 > Gửi SP (`POST api/customer/{id}/matches`) còn ghi 1 `customer_interactions` (type `note`, "Đã gửi SP …") + `Customer::touch()` — nhịp chăm sóc như `addInteraction`. Xem [`features/matching.md`](features/matching.md).
 
+### `appointments` — Lịch hẹn dẫn khách (GĐ2)
+`id` · `customer_id` (index) · `property_id` (BĐS đi xem; 0 = chưa gắn) · `assigned_user_id` (sales phụ trách) · `scheduled_at` datetime (giờ hẹn) · `duration_min` int default 0 · `location` varchar(255) default '' (bỏ trống → lấy địa chỉ BĐS) · `note` text · `status` enum(pending,done,canceled,no_show) · `result` string(20) default '' (**string, KHÔNG enum** — interested/considering/rejected/deposited; validate ở controller) · `result_note` text · `completed_at` datetime · `reminded_at` datetime (mốc đã nhắc trước giờ; tick không nhắc lại) · `user_created` · `created` · `updated`.
+Index: `(scheduled_at, status)`, `(assigned_user_id, status)`, `(property_id)`.
+> Thêm ở migration `database/appointment.php` (đăng ký sau `matching.php`) — guard `hasTable`, idempotent. **KHÔNG có `trash`** (dùng vòng đời status như `care_schedules`; hủy = `status=canceled`). Chốt `done` → tạo 1 `customer_interactions` type `viewing` + `Customer::touch()` + rescore. Tick `appointment-reminder-tick` nhắc trước giờ. Xem [`features/appointment.md`](features/appointment.md).
+
 ## 5. Thêm bảng/cột mới (checklist)
 
 1. Tạo `backend/database/<ten>.php` — trả `Migration` ẩn danh, `up()` guard `hasTable`/`hasColumn`,

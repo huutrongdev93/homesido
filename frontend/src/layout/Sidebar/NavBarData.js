@@ -17,6 +17,7 @@ export const NavBarData = () => {
 	const canCustomer = useCan('customer_view');
 	const canProperty = useCan('property_view');
 	const canMatching = useCan('matching_view');
+	const canAppointment = useCan('appointment_view');
 	const isAdmin = useIsAdmin();
 
 	// ===== TỔNG QUAN =====
@@ -60,6 +61,16 @@ export const NavBarData = () => {
 			title: 'Bất động sản',
 			to: '/properties',
 			icon: <FontAwesomeIcon icon="fa-light fa-building" />,
+			count: 0,
+		});
+	}
+	if (canAppointment) {
+		business.push({
+			key: 'appointments',
+			label: <Link to="/appointments">Lịch hẹn dẫn khách</Link>,
+			title: 'Lịch hẹn dẫn khách',
+			to: '/appointments',
+			icon: <FontAwesomeIcon icon="fa-light fa-calendar-clock" />,
 			count: 0,
 		});
 	}

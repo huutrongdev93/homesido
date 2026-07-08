@@ -14,6 +14,7 @@
  *   * * * * * curl -s "https://your-domain/schedule-run?token=SCHEDULE_RUN_TOKEN" >/dev/null 2>&1
  */
 
+use App\Services\Appointment\AppointmentReminder;
 use App\Services\Care\CareReminder;
 use App\Services\Care\ColdDetector;
 use App\Services\Care\CustomerRelease;
@@ -69,6 +70,30 @@ app(Schedule::class)->call(function () {
         ]);
     }
 })->everyMinute()->name('care-reminder-tick');
+
+/**
+ * Tick nhắc buổi hẹn dẫn khách sắp đến giờ (mỗi phút). Nhắc 1 lần/buổi hẹn trong cửa sổ trước giờ
+ * (env APPOINTMENT_REMIND_MINUTES, mặc định 60') qua Notifier::send + đánh dấu reminded_at.
+ * Bảng chưa migrate → thoát êm. Xem App\Services\Appointment\AppointmentReminder.
+ */
+app(Schedule::class)->call(function () {
+
+    try
+    {
+        $summary = (new AppointmentReminder())->tick();
+
+        if (array_sum($summary) > 0)
+        {
+            Log::info('Appointment reminder tick', $summary);
+        }
+    }
+    catch (\Throwable $e)
+    {
+        Log::error('Appointment reminder tick error: ' . $e->getMessage(), [
+            'trace' => $e->getTraceAsString(),
+        ]);
+    }
+})->everyMinute()->name('appointment-reminder-tick');
 
 /**
  * Tick phát hiện khách "nguội" (hằng ngày lúc 07:00). Gắn cờ is_cold_flagged + báo sales phụ trách.

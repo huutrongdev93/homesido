@@ -119,6 +119,24 @@ Route::namespace('App\Controllers\Api')
 
 /**
 |--------------------------------------------------------------------------
+| Lịch hẹn dẫn khách (GĐ2) — cần JWT token; gate cap appointment_* trong controller
+|--------------------------------------------------------------------------
+*/
+Route::namespace('App\Controllers\Api')
+    ->middleware('jwt')
+    ->prefix('api/appointment')
+    ->group(function ()
+    {
+        Route::get('', 'AppointmentApi@index')->name('api.appointment.index');       // ?status=&customer_id=&from=&to=
+        Route::post('', 'AppointmentApi@add')->name('api.appointment.add');
+        Route::get('/{id}', 'AppointmentApi@detail')->name('api.appointment.detail');
+        Route::put('/{id}', 'AppointmentApi@update')->name('api.appointment.update');
+        Route::put('/{id}/complete', 'AppointmentApi@complete')->name('api.appointment.complete');
+        Route::delete('/{id}', 'AppointmentApi@cancel')->name('api.appointment.cancel');
+    });
+
+/**
+|--------------------------------------------------------------------------
 | Bất động sản (Kho hàng) — cần JWT token; gate cap trong controller
 |--------------------------------------------------------------------------
 */

@@ -1,0 +1,14 @@
+.filterBar {
+	display: flex;
+	gap: 12px;
+	align-items: center;
+	margin-bottom: 16px;
+	flex-wrap: wrap;
+}
+
+.rowActions {
+	display: inline-flex;
+	gap: 6px;
+	justify-content: flex-end;
+	flex-wrap: wrap;
+}

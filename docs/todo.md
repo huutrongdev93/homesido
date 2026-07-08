@@ -33,7 +33,6 @@ khi đổi schema và tạo/cập nhật `docs/features/<feature>.md` + index kh
 
 ## Giai đoạn 2 (backlog — làm sau khi GĐ1 xong)
 
-- **Lịch hẹn dẫn khách** (`appointments`): tạo lịch (khách + BĐS + giờ) + tick nhắc trước giờ + cập nhật kết quả.
 - **Giao dịch** (`deals`, `deal_payments`, `commissions`): cọc→hợp đồng→hoàn tất; tự đổi status BĐS; tính hoa hồng.
 - **Báo cáo phễu + hiệu suất nhóm** (conversion từng bước, nguồn khách, doanh số) + xuất Excel/PDF.
 - **Marketing** (GĐ3): Zalo ZNS/SMS/Email hàng loạt, form thu lead từ web, bản đồ BĐS, mobile/PWA.

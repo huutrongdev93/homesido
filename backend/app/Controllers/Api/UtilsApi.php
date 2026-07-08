@@ -146,6 +146,22 @@ class UtilsApi extends Controller
                         ['value' => 'rejected',   'label' => 'Khách từ chối'],
                     ],
                 ],
+                'appointment' => [
+                    // Trạng thái buổi hẹn dẫn khách (appointments.status).
+                    'statuses' => [
+                        ['value' => 'pending',  'label' => 'Chờ dẫn'],
+                        ['value' => 'done',     'label' => 'Đã dẫn'],
+                        ['value' => 'canceled', 'label' => 'Đã hủy'],
+                        ['value' => 'no_show',  'label' => 'Khách không đến'],
+                    ],
+                    // Kết quả sau khi dẫn xem (appointments.result; "" = chưa có).
+                    'results' => [
+                        ['value' => 'interested',  'label' => 'Quan tâm'],
+                        ['value' => 'considering', 'label' => 'Đang cân nhắc'],
+                        ['value' => 'rejected',    'label' => 'Từ chối'],
+                        ['value' => 'deposited',   'label' => 'Đặt cọc'],
+                    ],
+                ],
             ],
         ];
 
@@ -197,6 +213,7 @@ class UtilsApi extends Controller
             'database/media.php',
             'database/property.php',
             'database/matching.php',
+            'database/appointment.php',
         ];
 
         foreach ($migrations as $migrationFile)

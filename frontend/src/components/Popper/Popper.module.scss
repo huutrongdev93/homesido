@@ -1,0 +1,20 @@
+.wrapper {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-width: 150px;
+    max-height: min((100vh - 96px) - 60px, 734px);
+    min-height: 100px;
+    padding-top: 8px;
+    border-radius: 8px;
+    background: rgb(255, 255, 255);
+    box-shadow: rgb(0 0 0 / 12%) 0px 2px 12px;
+}
+.action-wrapper {
+    padding:10px;
+    button, a {
+        width: 100%;
+        justify-content: left;
+        margin-left: 0px!important;
+    }
+}

@@ -1,0 +1,25 @@
+<?php
+return [
+    'delete.success' => 'Xóa dữ liệu thành công',
+    'delete.error' => 'Xóa dữ liệu thất bại',
+    'restore.success' => 'Khôi phục dữ liệu thành công',
+    'restore.error' => 'Khôi phục dữ liệu thất bại',
+    'update.success' => 'Cập nhật dữ liệu thành công',
+    'update.error' => 'Cập nhật dữ liệu thất bại',
+    'save.success' => 'Lưu dữ liệu thành công',
+    'save.error' => 'Lưu dữ liệu thất bại',
+    'add.success' => 'Thêm dữ liệu thành công',
+    'add.error' => 'Thêm dữ liệu thất bại',
+    'load.success' => 'Tải dữ liệu thành công',
+    'load.error' => 'Tải dữ liệu thất bại',
+    'uploadFile.success' => 'Upload file thành công',
+    'uploadFile.error' => 'Upload file thất bại',
+    'export.success' => 'Xuất dữ liệu thành công',
+    'export.error' => 'Xuất dữ liệu thất bại',
+    'import.success' => 'Nhập dữ liệu thành công',
+    'import.error' => 'Nhập dữ liệu thất bại',
+    'delete.noData' => 'Không có dữ liệu nào để xóa',
+    'delete.noModule' => 'Bạn vui lòng cung cấp module cần xóa',
+    'delete.noModel' => 'Bạn vui lòng cung cấp model dùng để xóa',
+];
+

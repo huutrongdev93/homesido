@@ -1,0 +1,78 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # ===============================
+    # Bảo vệ file & thư mục nhạy cảm
+    # ===============================
+    RewriteRule ^(\.env|composer\.(json|lock)|routes/) - [F,L]
+
+    # ===============================
+    # Xử lý logic Uploads (Chuyển đổi đường dẫn ảo)
+    # ===============================
+    # Chặn truy cập source
+    RewriteRule ^uploads/source/?$ - [R=404,L]
+
+    # Map đường dẫn: uploads/ABC -> storage/uploads/ABC
+    RewriteRule ^uploads/(.+)$ storage/uploads/$1 [L]
+
+    # ===============================
+    # Bảo vệ thư mục storage
+    # ===============================
+
+    # Nếu đích đến là storage/uploads/ -> CHO PHÉP (Dừng kiểm tra, cho qua luôn)
+    RewriteRule ^storage/uploads/ - [L]
+
+    # Nếu là các thư mục khác trong storage (logs, framework...) -> CHẶN
+    RewriteRule ^storage/ - [F,L]
+
+    # ===============================
+    # Routing cho ứng dụng (index.php)
+    # ===============================
+
+    # Bỏ qua node_modules
+    RewriteCond %{REQUEST_URI} !/node_modules/ [NC]
+
+    # Xử lý 404 cho assets ảo trong views
+    RewriteCond %{REQUEST_URI} /views/[^/]+/assets/ [NC]
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ - [R=404,L]
+
+    # Nếu file/thư mục không tồn tại thì chuyển về index.php
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+# ===============================
+# Các phần Cache, Headers giữ nguyên như cũ
+# ===============================
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/html "access plus 5 minutes"
+    ExpiresByType text/css "access plus 1 year"
+    ExpiresByType application/javascript "access plus 1 year"
+    ExpiresByType image/webp "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/gif "access plus 1 year"
+    ExpiresByType image/svg+xml "access plus 1 year"
+    ExpiresByType application/pdf "access plus 1 year"
+    ExpiresByType image/x-icon "access plus 1 year"
+</IfModule>
+
+<IfModule mod_headers.c>
+    <FilesMatch "\.(ico|jpg|jpeg|png|gif|svg|webp|css|js|woff|woff2|ttf|ttc|otf|eot?)$">
+        Header set Cache-Control "max-age=31536000, public"
+        Header set Access-Control-Allow-Origin "*"
+    </FilesMatch>
+    <FilesMatch "\.(html|htm)$">
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+    </FilesMatch>
+</IfModule>
+
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/css text/javascript application/javascript application/json image/svg+xml
+    BrowserMatch ^Mozilla/4 gzip-only-text/html
+    BrowserMatch ^Mozilla/4\.0[678] no-gzip
+    BrowserMatch \bMSIE !no-gzip !gzip-only-text/html
+</IfModule>

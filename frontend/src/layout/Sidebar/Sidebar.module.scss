@@ -1,0 +1,365 @@
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background-color: #fff;
+    padding: 16px 14px;
+    overflow-y: auto;
+
+    &::-webkit-scrollbar {
+        width: 4px;
+    }
+    &::-webkit-scrollbar-thumb {
+        background-color: #d9d9d9;
+        border-radius: 4px;
+    }
+}
+
+/* Logo */
+.logo {
+    display: flex;
+    align-items: center;
+    padding: 6px 8px 16px;
+    img {
+        height: 42px;
+        width: auto;
+        object-fit: contain;
+    }
+}
+
+/* ===== Trạng thái thu gọn (icon-rail) ===== */
+.sidebar.collapsed {
+    padding: 16px 8px;
+    overflow-x: hidden;
+
+    /* Logo wordmark cắt còn phần mark bên trái (chờ asset logo icon riêng) */
+    .logo {
+        justify-content: center;
+        padding: 6px 0 16px;
+        img {
+            height: 36px;
+            width: 44px;
+            object-fit: cover;
+            object-position: left center;
+        }
+    }
+
+    .profile-row {
+        justify-content: center;
+    }
+
+    .profile {
+        padding: 6px;
+        justify-content: center;
+        background: transparent;
+
+        &:hover {
+            background: var(--primary-pale);
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+        }
+    }
+
+    /* Menu icon-rail: antd đổi class sang ant-menu-inline-collapsed */
+    .menu :global(.ant-menu-inline-collapsed) {
+        width: 100%;
+
+        :global(.ant-menu-item),
+        :global(.ant-menu-submenu-title) {
+            border-radius: 10px;
+            color: #4b5563;
+        }
+        :global(.ant-menu-item:hover),
+        :global(.ant-menu-submenu-title:hover) {
+            background-color: var(--primary-pale);
+            color: var(--primary);
+        }
+        :global(.ant-menu-item-selected),
+        :global(.ant-menu-submenu-selected > .ant-menu-submenu-title) {
+            background-color: var(--primary);
+            color: #fff;
+            a { color: #fff; }
+        }
+    }
+}
+
+/* Hàng hồ sơ + chuông thông báo */
+.profile-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+
+    .profile {
+        flex: 1;
+        min-width: 0;
+        margin-bottom: 0;
+    }
+}
+
+/* Hồ sơ người dùng */
+.profile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    margin-bottom: 16px;
+    background: var(--primary-pale);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+    &:hover {
+        background: rgba(var(--primary-code), 0.1);
+    }
+
+    .avatar {
+        width: 44px;
+        height: 44px;
+        flex-shrink: 0;
+        overflow: hidden;
+        border-radius: 50%;
+        border: 2px solid #fff;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+        img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+    }
+    &-info {
+        min-width: 0;
+    }
+    &-name {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 700;
+        color: #1f2937;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    &-role {
+        margin: 2px 0 0;
+        display: inline-block;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--primary);
+        background: rgba(var(--primary-code), 0.12);
+        padding: 1px 8px;
+        border-radius: 20px;
+    }
+    &-stars {
+        margin: 4px 0 0;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 12px;
+        font-weight: 700;
+        color: #f59e0b;
+
+        svg { font-size: 12px; }
+    }
+    &-caret {
+        flex-shrink: 0;
+        margin-left: auto;
+        font-size: 12px;
+        color: #9ca3af;
+    }
+}
+
+/* Dropdown tài khoản */
+.account-action {
+    .button {
+        margin-left: 0;
+        justify-content: left;
+    }
+    hr {
+        margin: 0;
+    }
+}
+
+/* Menu */
+.menu {
+    flex: 1;
+
+    /* Nhãn section (type:'group') */
+    :global(.ant-menu-item-group-title) {
+        padding: 14px 8px 6px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.6px;
+        text-transform: uppercase;
+        color: var(--text-muted);
+    }
+
+    /* Mục "Quản trị hệ thống" — cửa sang chế độ admin, tint đỏ nhạt cho dễ nhận */
+    :global(.ant-menu-item.menu-admin-link:not(.ant-menu-item-selected)) {
+        color: var(--primary);
+        background: var(--primary-pale);
+        a { color: var(--primary); }
+    }
+
+    :global(.ant-menu-inline) {
+        .ant-menu-item {
+            height: 44px;
+            line-height: 44px;
+            margin-block: 4px;
+            border-radius: 10px;
+            color: #4b5563;
+            font-weight: 500;
+            width: 100%;
+        }
+        .ant-menu-item:hover {
+            background-color: var(--primary-pale);
+            color: var(--primary);
+        }
+        .ant-menu-item-selected {
+            background-color: var(--primary);
+            color: #fff;
+            a {
+                color: #fff;
+            }
+        }
+        .ant-menu-item .ant-menu-item-icon {
+            font-size: 16px;
+        }
+    }
+}
+
+/* Khung hỗ trợ */
+.support {
+    margin-top: 16px;
+
+    /* Màn hình thấp: thu gọn còn 1 hàng hotline để menu không bị chèn ép */
+    @media (max-height: 800px) {
+        .support-icon,
+        .support-desc {
+            display: none;
+        }
+        .support-inner {
+            padding: 12px;
+        }
+        .support-title {
+            margin-bottom: 8px;
+        }
+    }
+
+    &-inner {
+        position: relative;
+        padding: 18px 16px;
+        border-radius: 14px;
+        text-align: center;
+        color: #fff;
+        background: linear-gradient(135deg, var(--primary), #991b1b);
+        overflow: hidden;
+    }
+    &-icon {
+        width: 42px;
+        height: 42px;
+        margin: 0 auto 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.2);
+    }
+    &-title {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 700;
+    }
+    &-desc {
+        margin: 4px 0 12px;
+        font-size: 12px;
+        opacity: 0.85;
+        line-height: 1.4;
+    }
+    &-hotline {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        padding: 9px 12px;
+        border-radius: 10px;
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--primary);
+        background: #fff;
+        transition: all 0.2s ease;
+        &:hover {
+            color: var(--primary);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
+        }
+    }
+}
+
+/* Thẻ Gói & token còn lại */
+.plan-box {
+    display: block;
+    padding: 12px 14px;
+    margin-bottom: 16px;
+    border-radius: 12px;
+    background: var(--primary-pale);
+    border: 1px solid rgba(var(--primary-code), 0.14);
+    transition: all 0.2s ease;
+
+    &:hover {
+        background: rgba(var(--primary-code), 0.1);
+        border-color: rgba(var(--primary-code), 0.28);
+    }
+
+    &-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 9px;
+    }
+
+    &-name {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        font-weight: 700;
+        font-size: 13.5px;
+        color: var(--primary);
+    }
+
+    &-go {
+        font-size: 12px;
+        color: #9ca3af;
+    }
+
+    &-line {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 12.5px;
+        color: #6b7280;
+
+        strong {
+            color: #111827;
+            font-variant-numeric: tabular-nums;
+        }
+    }
+
+    &-bar {
+        margin-top: 8px;
+        height: 6px;
+        border-radius: 999px;
+        background: rgba(var(--primary-code), 0.15);
+        overflow: hidden;
+    }
+
+    &-fill {
+        height: 100%;
+        border-radius: 999px;
+        background: linear-gradient(90deg, var(--primary), #991b1b);
+        transition: width 0.3s ease;
+    }
+}

@@ -1,0 +1,13 @@
+{
+    "app": {
+        "name": "HomeSido App",
+        "title": "HomeSido App",
+        "description": "Dự án HomeSido là một app hỗ trợ các đội ngũ kinh doanh bất động sản trong việc quản lý và chăm sóc khách hàng, giúp tăng hiệu quả kinh doanh và nâng cao trải nghiệm khách hàng."
+    },
+    "theme": {
+        "colorPrimary": "#DC2626",
+        "colorPrimaryDark": "#B91C1C",
+        "borderRadius": 8,
+        "fontFamily": "Manrope, sans-serif"
+    }
+}

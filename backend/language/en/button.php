@@ -1,0 +1,20 @@
+<?php
+return [
+    'back'       => 'Back',
+    'add'        => 'Add New',
+    'save'       => 'Save',
+    'update'     => 'Update',
+    'temporary'  => 'Temporary Delete',
+    'delete'     => 'Permanent Delete',
+    'undo'       => 'Undo',
+    'reload'     => 'Reload',
+    'close'      => 'Close',
+    'cancel'     => 'Cancel',
+    'saveClose'  => 'Save & Close',
+    'download'   => 'Download',
+    'confirm.heading' => 'Delete Data',
+    'confirm.description' => 'Are you sure you want to delete this data?',
+    'confirm.restore.label' => 'Restore',
+    'confirm.restore.heading' => 'Restore Data',
+    'confirm.restore.description' => 'Are you sure you want to restore this data?',
+];

@@ -1,0 +1,172 @@
+.wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: var(--control-h);            /* chiều cao cố định → canh đều với input/select */
+    padding: 0 18px;
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+    font-weight: 600;
+    white-space: nowrap;
+    font-family: var(--font-family), serif;
+    cursor: pointer;
+    background-color: rgba(var(--color), 0.8);
+    color:rgba(var(--color-text, 0,0,0), 1);
+    border: 1px solid transparent;
+    user-select: none;
+    line-height: 1;
+    transition: transform .15s ease, box-shadow .22s ease,
+                background-color .2s ease, border-color .2s ease, color .2s ease;
+    + .wrapper {
+        margin-left: 8px;
+    }
+    &.disabled {
+        pointer-events: none;
+        opacity: 0.5;
+    }
+    &:hover {
+        background-color: rgba(var(--color), 1);
+    }
+}
+
+.title {
+    text-align: left;
+}
+
+.icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    text-align: center;
+}
+
+.small {
+    height: var(--control-h-sm);
+    padding: 0 12px;
+    font-size: 0.8rem;
+    border-radius: var(--radius-sm);
+}
+
+.large {
+    height: var(--control-h-lg);
+    padding: 0 22px;
+    min-width: 140px;
+    font-size: 0.9rem;
+    border-radius: var(--radius);
+}
+
+/* Nút chỉ có icon (vd cụm thao tác trong bảng) → hình vuông cho gọn, cân đối. */
+.wrapper:has(.icon):not(:has(.title)) {
+    width: var(--control-h);
+    min-width: 0;
+    padding: 0;
+}
+.small:has(.icon):not(:has(.title)) {
+    width: var(--control-h-sm);
+}
+.large:has(.icon):not(:has(.title)) {
+    width: var(--control-h-lg);
+}
+
+.rounded {
+    border-radius: 999px;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 6%);
+    border-color: rgba(22, 24, 35, 0.12);
+
+    &:hover {
+        border-color: rgba(22, 24, 35, 0.2);
+        background-color: rgba(22, 24, 35, 0.03);
+    }
+}
+
+.primary {
+    color: var(--white);
+    background: linear-gradient(135deg, #ef4444, var(--primary));
+    border-color: var(--primary);
+    box-shadow: 0 6px 16px -7px rgba(var(--primary-code), .65);
+    &:hover {
+        border-color: var(--primary);
+        background: linear-gradient(135deg, #f05252, #b91c1c);
+        box-shadow: 0 12px 22px -8px rgba(var(--primary-code), .7);
+        transform: translateY(-1px);
+    }
+    &:active { transform: translateY(0); }
+}
+
+.outline {
+    --color:var(--primary-code);
+    color: rgb(var(--color));
+    border-color: currentColor;
+    background-color: #fff;
+    &:hover {
+        border-color: currentColor;
+        background-color: rgba(var(--color), 0.05);
+    }
+}
+
+.buttonLoading {
+    p {
+        margin: 0!important;
+        width: 20px!important;
+        height: 20px!important;
+        border-width: 3px!important;
+    }
+}
+
+.background {
+    --color:var(--primary-code);
+    color: #fff;
+    border-color: transparent;
+    background-color: rgb(var(--color));
+    box-shadow: 0 6px 16px -7px rgba(var(--color), .6);
+    &:hover {
+        background-color: rgba(var(--color), 0.92);
+        box-shadow: 0 12px 22px -8px rgba(var(--color), .65);
+        transform: translateY(-1px);
+    }
+    &:active { transform: translateY(0); }
+    .buttonLoading {
+        p {
+            border-bottom-color:rgb(var(--color));
+        }
+    }
+}
+
+.white {
+    box-shadow: 0 2px 8px rgb(0 0 0 / 6%);
+    border-color: rgba(22, 24, 35, 0.12);
+    background-color:#fff;
+    color: #000;
+    &:hover {
+        border-color: rgba(22, 24, 35, 0.2);
+        background-color: rgba(22, 24, 35, 0.03);
+    }
+    .buttonLoading {
+        p {
+            border-bottom-color:#000!important;
+        }
+    }
+}
+
+.red {
+    --color:var(--red-code);
+    --color-text:255,255,255;
+}
+.blue {
+    --color:var(--blue-code);
+}
+.green {
+    --color:var(--green-code);
+}
+.yellow {
+    --color:var(--yellow-code);
+}
+.grey {
+    --color:var(--grey-code);
+}
+.noneBorder {
+    border-color: transparent;
+}

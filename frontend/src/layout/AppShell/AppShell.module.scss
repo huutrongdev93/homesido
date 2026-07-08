@@ -1,0 +1,133 @@
+.wrapper {
+    display: flex;
+    height: 100vh;
+    background-color: #f0f2f5;
+}
+
+/* Sidebar bên trái (desktop / tablet) */
+.sider {
+    display: flex;
+    flex-direction: column;
+    width: 260px;
+    flex-shrink: 0;
+    height: 100vh;
+    background-color: #fff;
+    border-right: 1px solid var(--border-color);
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.03);
+    transition: width 0.2s ease;
+
+    &.collapsed {
+        width: 78px;
+    }
+}
+
+.sider-inner {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Nút thu gọn / mở rộng ghim đáy sider */
+.collapse-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex-shrink: 0;
+    margin: 0 10px 10px;
+    padding: 9px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: var(--surface-muted);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    &:hover {
+        color: var(--primary);
+        background: var(--primary-pale);
+    }
+}
+
+/* Khu vực nội dung bên phải */
+.main {
+    flex: 1;
+    min-width: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.content {
+    flex: 1;
+    overflow-y: auto;
+    /* Canvas xám nhạt để card trắng (.app-card / section) nổi khối — chuẩn SaaS */
+    background-color: var(--surface-muted);
+    padding: 24px;
+
+    @media (max-width: 600px) {
+        padding: 16px;
+    }
+
+    &::-webkit-scrollbar {
+        width: 6px;
+    }
+    &::-webkit-scrollbar-thumb {
+        background-color: #c9ced6;
+        border-radius: 6px;
+    }
+}
+
+/* Top bar trên mobile */
+.topbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    background-color: #fff;
+    border-bottom: 1px solid var(--border-color);
+
+    &-logo {
+        height: 36px;
+        width: auto;
+        object-fit: contain;
+    }
+
+    &-badge {
+        margin-left: auto;
+        padding: 3px 10px;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--primary);
+        background: var(--primary-pale);
+        border: 1px solid rgba(var(--primary-code), 0.2);
+        border-radius: 999px;
+    }
+}
+
+.hamburger {
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 18px;
+    color: var(--primary);
+    background-color: var(--primary-pale);
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+/* Accent nhẹ phân biệt chế độ quản trị */
+.wrapper.admin {
+    .sider {
+        border-top: 3px solid var(--primary);
+    }
+}

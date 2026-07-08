@@ -1,0 +1,20 @@
+<?php
+return [
+    'back'     => 'Quay lại',
+    'add'      => 'Thêm mới',
+    'save'     => 'Lưu',
+    'update'   => 'Cập nhật',
+    'temporary' => 'Xóa tạm',
+    'delete'   => 'Xóa vĩnh viển',
+    'undo'     => 'Khôi phục',
+    'reload'   => 'Tải lại',
+    'close'    => 'Đóng',
+    'cancel'    => 'Hủy',
+    'saveClose' => 'Lưu & Đóng',
+    'download'  => 'Tải xuống',
+    'confirm.heading' => 'Xóa Dữ liệu',
+    'confirm.description' => 'Bạn chắc chắn muốn xóa dữ liệu này ?',
+    'confirm.restore.label' => 'Khôi phục',
+    'confirm.restore.heading' => 'Khôi phục dữ liệu',
+    'confirm.restore.description' => 'Bạn chắc chắn muốn khôi phục dữ liệu này ?',
+];

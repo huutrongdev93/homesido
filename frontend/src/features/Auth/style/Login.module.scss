@@ -1,0 +1,404 @@
+// ============ Trang đăng nhập (2 cột: giới thiệu + form) ============
+
+.login-container
+{
+    display: flex;
+    min-height: 100vh;
+    background:
+        radial-gradient(1200px 600px at -10% -10%, rgba(var(--primary-code), 0.10), transparent 60%),
+        radial-gradient(900px 500px at 110% 110%, rgba(var(--blue-code), 0.10), transparent 55%),
+        #eef3f8;
+    overflow: hidden;
+}
+
+/* ---------- Visual / brand panel ---------- */
+.login-connect
+{
+    position: relative;
+    width: 52%;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    overflow: hidden;
+    isolation: isolate;
+    background: linear-gradient(150deg, #dc2626 0%, #7a1414 52%, #3c0808 100%);
+
+    .mask
+    {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        background:
+            radial-gradient(800px 400px at 80% 0%, rgba(var(--blue-code), 0.35), transparent 60%),
+            radial-gradient(600px 600px at 0% 100%, rgba(47, 144, 214, 0.30), transparent 55%);
+    }
+
+    /* faint grid lines */
+    .grid-overlay
+    {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        background-image:
+            linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+        background-size: 46px 46px;
+        mask-image: radial-gradient(circle at 50% 40%, #000 0%, transparent 80%);
+    }
+
+    /* floating decorative orbs */
+    .orb
+    {
+        position: absolute;
+        z-index: 1;
+        border-radius: 50%;
+        filter: blur(2px);
+        pointer-events: none;
+    }
+    .orb-1
+    {
+        width: 320px;
+        height: 320px;
+        top: -90px;
+        right: -70px;
+        background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.22), transparent 65%);
+        animation: floaty 12s ease-in-out infinite alternate;
+    }
+    .orb-2
+    {
+        width: 240px;
+        height: 240px;
+        bottom: 8%;
+        right: 14%;
+        background: radial-gradient(circle at 30% 30%, rgba(var(--blue-code), 0.30), transparent 65%);
+        animation: floaty 16s ease-in-out infinite alternate-reverse;
+    }
+
+    .brand
+    {
+        position: absolute;
+        top: 36px;
+        left: 48px;
+        z-index: 3;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+
+        .brand-badge
+        {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 46px;
+            height: 46px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.16);
+            backdrop-filter: blur(6px);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            font-size: 22px;
+        }
+        .brand-name
+        {
+            font-size: 1.25rem;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+        }
+    }
+
+    .content
+    {
+        position: relative;
+        z-index: 3;
+        max-width: 580px;
+        padding: 48px 56px 72px;
+
+        h2
+        {
+            font-size: clamp(1.9rem, 3vw, 2.7rem);
+            font-weight: 800;
+            line-height: 1.18;
+            text-shadow: 0 2px 18px rgba(0, 0, 0, 0.25);
+        }
+        p
+        {
+            margin-top: 16px;
+            max-width: 460px;
+            font-size: 1.05rem;
+            line-height: 1.7;
+            color: rgba(255, 255, 255, 0.88);
+        }
+    }
+
+    .features
+    {
+        margin-top: 30px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+
+        .feature
+        {
+            display: flex;
+            align-items: center;
+            gap: 13px;
+            font-size: 0.98rem;
+            color: rgba(255, 255, 255, 0.95);
+
+            .feature-icon
+            {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 36px;
+                height: 36px;
+                flex: 0 0 36px;
+                border-radius: 10px;
+                font-size: 15px;
+                background: rgba(255, 255, 255, 0.14);
+                border: 1px solid rgba(255, 255, 255, 0.22);
+            }
+        }
+    }
+
+    /* Widget trang trí trung tính (badge tên app + cột gạch minh hoạ) */
+    .score-card
+    {
+        margin-top: 38px;
+        display: inline-flex;
+        align-items: center;
+        gap: 26px;
+        padding: 20px 26px;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.10);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 18px 50px -20px rgba(0, 0, 0, 0.55);
+        animation: cardIn 0.7s 0.15s cubic-bezier(0.16, 1, 0.3, 1) both;
+
+        .score-ring
+        {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 86px;
+            height: 86px;
+            border-radius: 50%;
+            background:
+                conic-gradient(#5ee0a0 0% 92%, rgba(255, 255, 255, 0.15) 92% 100%);
+            position: relative;
+
+            &::before
+            {
+                content: '';
+                position: absolute;
+                inset: 7px;
+                border-radius: 50%;
+                background: #7a1414;
+            }
+
+            .score-value
+            {
+                position: relative;
+                font-size: 1.6rem;
+                font-weight: 800;
+                line-height: 1;
+            }
+            .score-label
+            {
+                position: relative;
+                margin-top: 2px;
+                font-size: 0.62rem;
+                letter-spacing: 0.5px;
+                text-transform: uppercase;
+                color: rgba(255, 255, 255, 0.75);
+            }
+        }
+
+        .score-bars
+        {
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+            height: 70px;
+
+            span
+            {
+                width: 12px;
+                height: var(--h);
+                border-radius: 6px 6px 3px 3px;
+                background: linear-gradient(180deg, #6fd0ff, rgba(111, 208, 255, 0.35));
+                transform-origin: bottom;
+                animation: barGrow 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+            }
+            span:nth-child(1) { animation-delay: 0.30s; }
+            span:nth-child(2) { animation-delay: 0.40s; }
+            span:nth-child(3) { animation-delay: 0.50s; }
+            span:nth-child(4) { animation-delay: 0.60s; }
+            span:nth-child(5) { animation-delay: 0.70s; }
+        }
+    }
+}
+
+/* ---------- Form panel ---------- */
+.login-form
+{
+    width: 48%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 24px;
+    position: relative;
+    z-index: 1;
+}
+
+.login-form-wrapper
+{
+    width: 100%;
+    max-width: 420px;
+    background: rgba(255, 255, 255, 0.78);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    border-radius: 22px;
+    padding: 40px 38px;
+    box-shadow:
+        0 22px 60px -22px rgba(13, 71, 117, 0.35),
+        0 2px 8px rgba(0, 0, 0, 0.04);
+    animation: cardIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.login-logo
+{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 22px;
+
+    .login-logo-badge
+    {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        color: #fff;
+        font-size: 20px;
+        background: linear-gradient(135deg, #ef4444, var(--primary));
+        box-shadow: 0 8px 18px -8px rgba(var(--primary-code), 0.8);
+    }
+    .login-logo-name
+    {
+        font-size: 1.15rem;
+        font-weight: 800;
+        letter-spacing: 0.3px;
+    }
+}
+
+.login-heading
+{
+    margin-bottom: 28px;
+
+    h1
+    {
+        font-size: 1.9rem;
+        font-weight: 800;
+        line-height: 1.2;
+        color: #16202b;
+    }
+    p
+    {
+        margin-top: 8px;
+        font-size: 0.98rem;
+        color: rgba(var(--grey-code), 1);
+    }
+}
+
+.login-form-inner
+{
+    :global(.form-group)
+    {
+        margin-bottom: 1.1rem !important;
+
+        label
+        {
+            font-size: 0.88rem !important;
+            font-weight: 600;
+            color: #2c3a47;
+            margin-bottom: 6px;
+            display: inline-block;
+        }
+
+        :global(.form-control)
+        {
+            border-radius: 12px !important;
+            padding: 12px 14px !important;
+            border: 1.5px solid #e3e9f0 !important;
+            background: rgba(255, 255, 255, 0.9) !important;
+            font-size: 0.96rem !important;
+            transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+
+            &:hover
+            {
+                border-color: rgba(var(--primary-code), 0.55) !important;
+            }
+            &:focus,
+            &:global(.ant-input-focused),
+            &:focus-within
+            {
+                border-color: var(--primary) !important;
+                background: #fff !important;
+                box-shadow: 0 0 0 4px rgba(var(--primary-code), 0.12) !important;
+            }
+        }
+    }
+}
+
+.login-footer
+{
+    margin-top: 26px;
+    text-align: center;
+    font-size: 0.85rem;
+    color: rgba(var(--grey-code), 1);
+}
+
+/* ---------- Animations ---------- */
+@keyframes cardIn
+{
+    from { opacity: 0; transform: translateY(18px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes floaty
+{
+    from { transform: translate(0, 0); }
+    to   { transform: translate(-18px, 22px); }
+}
+
+@keyframes barGrow
+{
+    from { transform: scaleY(0); opacity: 0; }
+    to   { transform: scaleY(1); opacity: 1; }
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 992px)
+{
+    .login-connect { display: none; }
+    .login-form
+    {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px)
+{
+    .login-form-wrapper
+    {
+        padding: 30px 22px;
+        border-radius: 18px;
+    }
+    .login-heading h1 { font-size: 1.6rem; }
+}

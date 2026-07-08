@@ -1,0 +1,148 @@
+.modal {
+    /* className của antd v6 có thể nằm ở .ant-modal hoặc .ant-modal-content → phủ cả 2 */
+    &:global(.ant-modal-content),
+    :global(.ant-modal-content) {
+        padding: 0;
+        overflow: hidden;
+        border-radius: 18px;
+        box-shadow: 0 24px 60px rgba(17, 24, 39, 0.18);
+    }
+}
+
+/* ===== Header ===== */
+.head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 20px 22px;
+    background: linear-gradient(135deg, rgba(var(--primary-code), 0.10), rgba(var(--primary-code), 0.02));
+    border-bottom: 1px solid #eef0f3;
+}
+
+.head-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 46px;
+    height: 46px;
+    font-size: 18px;
+    color: #fff;
+    border-radius: 13px;
+    background: linear-gradient(135deg, var(--primary), #991b1b);
+    box-shadow: 0 8px 18px rgba(var(--primary-code), 0.40);
+}
+
+.head-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.head-title {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.25;
+    color: #111827;
+}
+
+.head-sub {
+    margin: 3px 0 0;
+    font-size: 12.5px;
+    color: #6b7280;
+}
+
+.head-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    background: #fff;
+    border: 1px solid #eef0f3;
+    border-radius: 9px;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    &:hover {
+        color: #111827;
+        border-color: #d1d5db;
+    }
+}
+
+/* ===== Body ===== */
+.body {
+    padding: 22px;
+
+    label {
+        font-weight: 500;
+        color: #374151;
+    }
+}
+
+/* Helper bố cục 2 cột — để global cho feature form dùng được (CSS module scope-safe). */
+:global(.mform-grid-2) {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 14px;
+
+    @media (max-width: 520px) {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ===== Footer ===== */
+.foot {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 14px 22px;
+    background: #fafbfc;
+    border-top: 1px solid #eef0f3;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 40px;
+    padding: 0 18px;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+}
+
+.btn-ghost {
+    color: #374151;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+
+    &:hover:not(:disabled) {
+        background: #f9fafb;
+        border-color: #d1d5db;
+    }
+}
+
+.btn-primary {
+    color: #fff;
+    border: 0;
+    background: linear-gradient(135deg, var(--primary), #991b1b);
+    box-shadow: 0 8px 18px rgba(var(--primary-code), 0.35);
+
+    &:hover:not(:disabled) {
+        filter: brightness(1.06);
+    }
+}
+
+.btn-spin {
+    font-size: 13px;
+}

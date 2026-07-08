@@ -1,0 +1,155 @@
+.bell {
+    flex: 0 0 auto;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    border: 1px solid #e8ebf3;
+    background: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    color: #4b5563;
+    transition: all .15s;
+
+    &:hover {
+        color: #4f46e5;
+        border-color: #c7d2fe;
+        background: #f5f6ff;
+    }
+}
+
+.panel {
+    width: 340px;
+    max-width: 90vw;
+}
+
+.head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    border-bottom: 1px solid #f0f1f5;
+}
+
+.headTitle {
+    font-size: 14px;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.readAll {
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #4f46e5;
+    padding: 0;
+
+    &:hover { color: #4338ca; }
+}
+
+.pushRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 9px 14px;
+    border-bottom: 1px solid #f0f1f5;
+    background: #fafbff;
+}
+
+.pushLabel {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #4b5563;
+}
+
+.pushHint {
+    color: #9ca3af;
+    cursor: help;
+    font-size: 12px;
+
+    &:hover { color: #4f46e5; }
+}
+
+.list {
+    max-height: 380px;
+    overflow-y: auto;
+}
+
+.item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    width: 100%;
+    padding: 11px 14px;
+    border: none;
+    border-bottom: 1px solid #f5f6f9;
+    background: #fff;
+    text-align: left;
+    cursor: default;
+
+    &:last-child { border-bottom: none; }
+
+    &.clickable { cursor: pointer; }
+
+    &.clickable:hover { background: #f7f9ff; }
+
+    &.unread { background: #f5f8ff; }
+
+    &.unread.clickable:hover { background: #eef3ff; }
+}
+
+.itemIcon {
+    flex: 0 0 30px;
+    height: 30px;
+    border-radius: 9px;
+    background: #f4f5fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    margin-top: 1px;
+}
+
+.itemBody {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.itemTitle {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1f2937;
+    line-height: 1.4;
+}
+
+.itemMsg {
+    font-size: 12.5px;
+    color: #6b7280;
+    line-height: 1.5;
+}
+
+.itemTime {
+    font-size: 11.5px;
+    color: #9ca3af;
+    margin-top: 2px;
+}
+
+.dot {
+    flex: 0 0 8px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #4f46e5;
+    margin-top: 6px;
+}

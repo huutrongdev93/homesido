@@ -1,0 +1,86 @@
+.loading-wrapper {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 98;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 12px;
+    /* Full-page: phủ nhẹ sáng + mờ (KHÔNG còn nền đen). */
+    background: rgba(248, 250, 252, 0.62);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    text-align: center;
+
+    /* Inline (trong modal, card…): trong suốt, không phủ. */
+    &.noFixed {
+        position: absolute;
+        background: transparent;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        padding: 28px 0;
+    }
+    &.noBar .loader-bar { display: none; }
+    &.bar .loader { display: none; }
+    &.spin .loader-bar { display: none; }
+}
+
+.loader-box {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* Caption gọn, mờ (chỉ hiện ở loader mặc định, ẩn ở spin). */
+.header {
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--text-muted, #6b7280);
+}
+
+/* Loader mặc định = ring spinner gọn, màu thương hiệu. */
+:not(.spin) .loader {
+    width: 30px;
+    height: 30px;
+    display: inline-block;
+    box-sizing: border-box;
+    border: 3px solid rgba(var(--primary-code), .22);
+    border-bottom-color: var(--primary);
+    border-radius: 50%;
+    background: transparent;
+    animation: rotation .8s linear infinite;
+
+    .loader-text { display: none; }
+}
+:not(.spin) .loader::after,
+:not(.spin) .loader::before { display: none; }
+
+/* Ẩn thanh bar mặc định cho gọn. */
+.loader-bar { display: none; }
+
+/* Biến thể spin (dùng trong Button/SearchBar) — giữ nguyên hành vi cũ. */
+.spin {
+    .loader {
+        width: 48px;
+        height: 48px;
+        border: 5px solid #FFF;
+        border-bottom-color: #FF3D00;
+        border-radius: 50%;
+        display: inline-block;
+        box-sizing: border-box;
+        animation: rotation 1s linear infinite;
+        background: transparent;
+        .loader-text { display: none; }
+    }
+    .header { display: none; }
+}
+
+@keyframes rotation {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}

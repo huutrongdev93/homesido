@@ -1,0 +1,324 @@
+/* ===== Đầu trang: tiêu đề + đăng xuất + tabs ===== */
+.page-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin: 8px 0 18px;
+}
+
+.page-title {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 800;
+    color: #111827;
+}
+
+.page-sub {
+    margin: 4px 0 0;
+    font-size: 13px;
+    color: #9ca3af;
+}
+
+.page-tabs {
+    width: 100%;
+
+    :global(.ant-tabs-nav) {
+        margin-bottom: 0;
+    }
+}
+
+/* ===== Card chung ===== */
+.card {
+    padding: 22px 24px;
+    margin-bottom: 18px;
+    background: #fff;
+    border: 1px solid #eef0f3;
+    border-radius: 16px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+}
+
+.card-head {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding-bottom: 18px;
+    margin-bottom: 22px;
+    border-bottom: 1px solid #f1f3f6;
+}
+
+.card-head-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    font-size: 15px;
+    color: var(--primary);
+    background: rgba(var(--primary-code), 0.10);
+    border-radius: 9px;
+}
+
+.card-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+/* ===== Thân card: 2 cột (avatar | lưới thông tin) ===== */
+.card-body {
+    display: flex;
+    gap: 40px;
+
+    @media (max-width: 720px) {
+        flex-direction: column;
+        gap: 24px;
+        align-items: center;
+    }
+}
+
+.avatar-col {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding-top: 6px;
+    width: 160px;
+
+    @media (max-width: 720px) {
+        width: auto;
+    }
+}
+
+.avatar {
+    width: 130px;
+    height: 130px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: #f3f4f6;
+    border: 1px solid #eef0f3;
+    box-shadow: 0 8px 22px rgba(17, 24, 39, 0.08);
+}
+
+.avatar-name {
+    margin: 4px 0 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: #1f2937;
+    text-align: center;
+}
+
+.avatar-role {
+    display: inline-block;
+    padding: 3px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--primary);
+    background: rgba(var(--primary-code), 0.10);
+    border-radius: 20px;
+}
+
+/* ===== Lưới item thông tin ===== */
+.info-grid {
+    flex: 1;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 22px 28px;
+
+    @media (max-width: 640px) {
+        grid-template-columns: 1fr;
+    }
+}
+
+.info-grid-full {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 22px 28px;
+
+    @media (max-width: 640px) {
+        grid-template-columns: 1fr;
+    }
+}
+
+.meta {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    min-width: 0;
+}
+
+.meta-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    font-size: 14px;
+    color: var(--primary);
+    background: rgba(var(--primary-code), 0.10);
+    border-radius: 10px;
+}
+
+.meta-body {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding-top: 1px;
+}
+
+.meta-label {
+    margin-bottom: 3px;
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+.meta-value {
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+    word-break: break-word;
+}
+
+/* ===== Card Gói & Hạn mức ===== */
+.plan-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+    padding: 5px 14px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--primary);
+    background: rgba(var(--primary-code), 0.10);
+    border-radius: 20px;
+
+    em {
+        font-style: normal;
+        font-weight: 600;
+        font-size: 12px;
+        opacity: 0.8;
+    }
+
+    &[data-plan="pro"] { color: #7c3aed; background: rgba(124, 58, 237, 0.10); }
+    &[data-plan="max"] { color: #b45309; background: rgba(180, 83, 9, 0.10); }
+}
+
+.plan-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--primary);
+    white-space: nowrap;
+
+    &:hover { text-decoration: underline; }
+}
+
+.meter-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 20px;
+
+    @media (max-width: 720px) {
+        grid-template-columns: 1fr;
+    }
+}
+
+.meter {
+    padding: 16px 18px;
+    background: #fafbfc;
+    border: 1px solid #eef0f3;
+    border-radius: 12px;
+}
+
+.meter-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.meter-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    font-size: 13px;
+    color: var(--primary);
+    background: rgba(var(--primary-code), 0.10);
+    border-radius: 8px;
+}
+
+.meter-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+}
+
+.meter-figure {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.meter-remaining {
+    font-size: 22px;
+    font-weight: 800;
+    color: #111827;
+    line-height: 1;
+}
+
+.meter-of {
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+.meter-special {
+    font-size: 16px;
+    font-weight: 700;
+    color: #7c3aed;
+}
+
+.meter-bar {
+    height: 6px;
+    border-radius: 999px;
+    background: #eef1f4;
+    overflow: hidden;
+}
+
+.meter-fill {
+    height: 100%;
+    border-radius: 999px;
+    transition: width 0.4s ease;
+}
+
+.meter-foot {
+    margin-top: 8px;
+    font-size: 11px;
+    color: #9ca3af;
+}
+
+/* ===== Card dạng form (đổi mật khẩu) ===== */
+.card-form {
+    max-width: 560px;
+
+    form {
+        position: relative;
+    }
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 8px;
+}

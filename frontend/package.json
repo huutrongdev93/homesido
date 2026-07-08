@@ -1,0 +1,94 @@
+{
+  "name": "HomeSido",
+  "version": "0.0.1",
+  "private": true,
+  "homepage": "",
+  "dependencies": {
+    "@ant-design/icons": "^6.2.5",
+    "@hookform/error-message": "^2.0.1",
+    "@hookform/resolvers": "^3.9.0",
+    "@reduxjs/toolkit": "^2.12.0",
+    "@tippyjs/react": "^4.2.6",
+    "antd": "^6.4.5",
+    "axios": "1.15.2",
+    "classnames": "^2.3.2",
+    "dayjs": "^1.11.7",
+    "lodash": "4.18.0",
+    "mem": "^9.0.2",
+    "normalize.css": "^8.0.1",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "react-hook-form": "^7.53.0",
+    "react-redux": "^9.3.0",
+    "react-router-dom": "^6.26.2",
+    "react-scripts": "^5.0.1",
+    "web-vitals": "^2.1.4",
+    "yup": "^1.4.0"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/jest-dom": "^6.6.0",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.5.0",
+    "babel-plugin-module-resolver": "^4.1.0",
+    "customize-cra": "^1.0.0",
+    "react-app-rewired": "^2.2.1",
+    "sass": "^1.57.1"
+  },
+  "scripts": {
+    "start": "react-app-rewired start",
+    "build": "react-app-rewired build",
+    "test": "react-app-rewired test",
+    "eject": "react-app-rewired eject"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ],
+    "overrides": [
+      {
+        "files": [
+          "src/features/**/*.js",
+          "src/features/**/*.jsx"
+        ],
+        "rules": {
+          "no-restricted-imports": [
+            "error",
+            {
+              "paths": [
+                {
+                  "name": "antd",
+                  "importNames": [
+                    "Input",
+                    "InputNumber",
+                    "Select",
+                    "AutoComplete",
+                    "Cascader",
+                    "TreeSelect",
+                    "Mentions",
+                    "DatePicker",
+                    "TimePicker"
+                  ],
+                  "message": "Không dùng input antd trực tiếp trong feature. Dùng field dùng chung ~/components/Forms (InputField/NumberField/SelectField/DateField/DateRangeField/DebounceSelect...) + react-hook-form, bọc trong scope .form. Xem docs/features/frontend-data-standards.md. Ngoại lệ thật sự: thêm // eslint-disable-next-line no-restricted-imports."
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}

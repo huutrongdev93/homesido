@@ -1,0 +1,110 @@
+// ============================================================
+//  Dashboard (trang chủ base) — header chào + lưới thẻ lối tắt.
+//  Module nghiệp vụ mới thêm thẻ vào mảng quickActions (pages/index.js);
+//  các tone màu của .statIcon dưới là bảng màu sẵn cho thẻ mới.
+// ============================================================
+
+.dashboard {
+    padding: 24px;
+    background: #f4f6fb;
+    min-height: calc(100vh - 64px);
+}
+
+.dashboardHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.dashboardTitle {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0;
+}
+
+.dashboardSub {
+    font-size: 13px;
+    color: #8c93a3;
+    margin-top: 2px;
+}
+
+// ---- Lưới thẻ lối tắt ----
+.quickGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.quickLabel {
+    font-size: 15px;
+    font-weight: 700;
+    color: #111827;
+}
+
+// ---- Thẻ lối tắt (stat card) ----
+.statCard {
+    background: #fff;
+    border: 1px solid #eef0f5;
+    border-radius: 14px;
+    padding: 18px;
+    box-shadow: 0 1px 3px rgba(16, 24, 40, 0.04);
+    transition: box-shadow .2s, transform .2s;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+
+    &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 22px rgba(16, 24, 40, 0.08);
+    }
+}
+
+.statTop {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.statIcon {
+    flex: 0 0 auto;
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 19px;
+
+    &.primary { background: #e7f0ff; color: #2563eb; }
+    &.success { background: #e6f7ee; color: #16a34a; }
+    &.warning { background: #fff3da; color: #f59e0b; }
+    &.danger  { background: #ffe9e9; color: #ef4444; }
+    &.purple  { background: #f1e9ff; color: #7c3aed; }
+    &.orange  { background: #ffeede; color: #f97316; }
+}
+
+.statMain { min-width: 0; }
+
+.statLabel {
+    font-size: 13px;
+    color: #8c93a3;
+    margin-top: 2px;
+}
+
+.statCardLink {
+    display: block;
+    color: inherit;
+    text-decoration: none;
+}
+
+// ============================================================
+//  Responsive
+// ============================================================
+@media (max-width: 768px) {
+    .dashboard { padding: 16px; }
+}

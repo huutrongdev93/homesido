@@ -1,0 +1,38 @@
+/* ============================================================
+   Breakpoints dùng chung cho toàn hệ thống (mobile-first helpers)
+   Cách dùng trong file .module.scss:
+     @use '../../../assets/style/breakpoints' as bp;   // chỉnh độ sâu cho đúng
+     @include bp.down(md) { ... }   // áp dụng khi <= md
+   Hoặc dùng trực tiếp biến: @media (max-width: bp.$md) { ... }
+
+   Mốc chuẩn (đồng bộ với AppProvider: isMobile <768, isTablet <1300):
+     xs 480  | sm 600 | md 768 (mobile threshold) | lg 1024 | xl 1300 (desktop)
+   ============================================================ */
+
+$xs: 480px;
+$sm: 600px;
+$md: 768px;
+$lg: 1024px;
+$xl: 1300px;
+
+$breakpoints: (
+    xs: $xs,
+    sm: $sm,
+    md: $md,
+    lg: $lg,
+    xl: $xl,
+);
+
+/* <= mốc (mobile-down) — dùng nhiều nhất */
+@mixin down($name) {
+    @media (max-width: map-get($breakpoints, $name)) {
+        @content;
+    }
+}
+
+/* >= mốc + 1px (desktop-up) */
+@mixin up($name) {
+    @media (min-width: map-get($breakpoints, $name) + 1px) {
+        @content;
+    }
+}

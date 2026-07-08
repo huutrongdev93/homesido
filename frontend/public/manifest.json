@@ -1,0 +1,20 @@
+{
+  "short_name": "BaseApp",
+  "name": "Base App",
+  "icons": [
+    {
+      "src": "assets/images/logo-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/images/logo-64x64.png",
+      "sizes": "64x64 24x24 16x16",
+      "type": "image/png"
+    }
+  ],
+  "start_url": ".",
+  "display": "fullscreen",
+  "theme_color": "#f82c55",
+  "background_color": "#ffffff"
+}

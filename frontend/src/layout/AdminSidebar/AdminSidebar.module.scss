@@ -1,0 +1,121 @@
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background-color: #fff;
+    padding: 16px 14px;
+    overflow-y: auto;
+
+    &::-webkit-scrollbar {
+        width: 4px;
+    }
+    &::-webkit-scrollbar-thumb {
+        background-color: #d9d9d9;
+        border-radius: 4px;
+    }
+}
+
+/* Logo + badge chế độ quản trị */
+.logo {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 6px 8px 16px;
+
+    img {
+        height: 42px;
+        width: auto;
+        object-fit: contain;
+    }
+
+    &-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 3px 10px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+        color: #fff;
+        background: linear-gradient(135deg, var(--gray-700), var(--gray-900));
+        border-radius: 999px;
+    }
+}
+
+/* Nút quay về chế độ người dùng */
+.mode-switch {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 16px;
+    padding: 9px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gray-700);
+    background: var(--gray-100);
+    border: 1px solid var(--gray-200);
+    border-radius: 10px;
+    transition: all 0.15s ease;
+
+    &:hover {
+        color: var(--primary);
+        border-color: rgba(var(--primary-code), 0.28);
+        background: var(--primary-pale);
+    }
+}
+
+/* Menu quản trị */
+.menu {
+    flex: 1;
+
+    :global(.ant-menu) {
+        :global(.ant-menu-item) {
+            height: 44px;
+            line-height: 44px;
+            margin-block: 4px;
+            border-radius: 10px;
+            color: #4b5563;
+            font-weight: 500;
+            width: 100%;
+        }
+        :global(.ant-menu-item:hover) {
+            background-color: var(--primary-pale);
+            color: var(--primary);
+        }
+        :global(.ant-menu-item-selected) {
+            background-color: var(--primary);
+            color: #fff;
+            a { color: #fff; }
+        }
+        :global(.ant-menu-item .ant-menu-item-icon) {
+            font-size: 16px;
+        }
+    }
+}
+
+/* ===== Trạng thái thu gọn (icon-rail) ===== */
+.sidebar.collapsed {
+    padding: 16px 8px;
+    overflow-x: hidden;
+
+    .logo {
+        align-items: center;
+        padding: 6px 0 16px;
+        img {
+            height: 36px;
+            width: 44px;
+            object-fit: cover;
+            object-position: left center;
+        }
+    }
+
+    .mode-switch {
+        padding: 9px 0;
+    }
+
+    .menu :global(.ant-menu-inline-collapsed) {
+        width: 100%;
+    }
+}

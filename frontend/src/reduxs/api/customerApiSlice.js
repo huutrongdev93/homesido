@@ -42,6 +42,17 @@ export const customerApiSlice = apiSlice.injectEndpoints({
 			invalidatesTags: ['Customer'],
 		}),
 
+		// Nhập khách từ Excel/CSV (FormData). Ghi đè Content-Type để axios set multipart boundary.
+		// Trả tổng kết {total, created, skipped, errors[]} — invalidate 'Customer' để list refetch.
+		importCustomers: builder.mutation({
+			query: (formData) => ({
+				url: 'customer/import', method: 'post', data: formData,
+				headers: {'Content-Type': 'multipart/form-data'},
+			}),
+			transformResponse: (body) => body?.data || {total: 0, created: 0, skipped: 0, errors: []},
+			invalidatesTags: ['Customer'],
+		}),
+
 		// Nhu cầu / tiêu chí của khách (cho Matching GĐ2) — CRUD trong drawer chi tiết.
 		getCustomerDemands: builder.query({
 			query: (customerId) => ({url: `customer/${customerId}/demands`, method: 'get'}),
@@ -71,6 +82,7 @@ export const {
 	useDeleteCustomerMutation,
 	useGetAssignableUsersQuery,
 	useTransferCustomerMutation,
+	useImportCustomersMutation,
 	useGetCustomerDemandsQuery,
 	useAddDemandMutation,
 	useUpdateDemandMutation,

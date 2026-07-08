@@ -6,8 +6,11 @@ use App\Models\Customer;
 use App\Models\CustomerDemand;
 use App\Models\CustomerInteraction;
 use App\Models\CustomerTransfer;
+use App\Services\Customer\CustomerSheet;
 use App\Services\Notification\Notifier;
 use Illuminate\Support\Str;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use SkillDo\Cms\Models\User;
 use SkillDo\Cms\Support\UserRole;
 use SkillDo\Http\Request;
@@ -49,41 +52,7 @@ class CustomerApi extends ApiController
 
         [$page, $pageSize, $offset] = $this->paging($request);
 
-        $query = Customer::query();
-
-        // Data-scope: không có quyền xem toàn sàn → chỉ thấy khách của mình + khách "kho chung"
-        // (chưa ai phụ trách) đang KHÔNG bị khóa (khách bị khóa của người khác coi như đã có chủ).
-        if (!$this->canViewAll('customer_view_all'))
-        {
-            $this->applyScope($query);
-        }
-
-        $keyword = trim((string) $request->input('keyword'));
-        if ($keyword !== '')
-        {
-            $like = '%' . $keyword . '%';
-            $query->where(function ($q) use ($like) {
-                $q->where('full_name', 'like', $like)->orWhere('phone', 'like', $like);
-            });
-        }
-
-        $stage = (string) $request->input('pipeline_stage');
-        if (in_array($stage, self::PIPELINE_STAGES, true))
-        {
-            $query->where('pipeline_stage', $stage);
-        }
-
-        $temperature = (string) $request->input('temperature');
-        if (in_array($temperature, self::TEMPERATURES, true))
-        {
-            $query->where('temperature', $temperature);
-        }
-
-        $assigned = (int) $request->input('assigned_user_id');
-        if ($assigned > 0 && $this->canViewAll('customer_view_all'))
-        {
-            $query->where('assigned_user_id', $assigned);
-        }
+        $query = $this->buildListQuery($request);
 
         $total = (int) $query->count();
 
@@ -213,6 +182,86 @@ class CustomerApi extends ApiController
         Customer::where('id', $customer->id)->trash();
 
         response()->success('Đã xóa khách hàng', ['id' => (int) $customer->id]);
+    }
+
+    /**
+     * GET api/customer/export — xuất khách hàng ra Excel theo filter + scope hiện tại.
+     * Query giống index (keyword/pipeline_stage/temperature/assigned_user_id). Tải file .xlsx.
+     */
+    public function export(Request $request): void
+    {
+        $this->requireCap('customer_view', 'Bạn không có quyền xem khách hàng.');
+
+        $rows = $this->buildListQuery($request)
+            ->orderByDesc('id')
+            ->limit(CustomerSheet::MAX_EXPORT)
+            ->get();
+
+        $spreadsheet = CustomerSheet::buildExport($rows);
+
+        $this->streamXlsx($spreadsheet, 'khach-hang-' . date('Ymd-His') . '.xlsx');
+    }
+
+    /**
+     * GET api/customer/import-template — tải file mẫu (header + 1 dòng ví dụ) để nhập.
+     */
+    public function importTemplate(Request $request): void
+    {
+        $this->requireCap('customer_add', 'Bạn không có quyền thêm khách hàng.');
+
+        $this->streamXlsx(CustomerSheet::buildTemplate(), 'mau-nhap-khach-hang.xlsx');
+    }
+
+    /**
+     * POST api/customer/import — nhập khách từ Excel/CSV (field `file`). Chống trùng SĐT theo
+     * lô + báo từng dòng lỗi. Khách nhập vào tự gán cho người nhập (assigned_user_id = mình).
+     */
+    public function import(Request $request): void
+    {
+        $this->requireCap('customer_add', 'Bạn không có quyền thêm khách hàng.');
+
+        $file = $request->file('file');
+        if (empty($file))
+        {
+            response()->setStatusCode(422)->setApiStatus(422)->error('Vui lòng chọn tệp Excel/CSV để nhập.');
+        }
+        if (is_array($file))
+        {
+            $file = $file[0];
+        }
+
+        try
+        {
+            $summary = CustomerSheet::import($file, $this->userId());
+        }
+        catch (\Exception $e)
+        {
+            // Message tiếng Việt đã set sẵn trong service; truyền $e để được auto-log.
+            response()->setStatusCode(422)->setApiStatus(422)->error($e);
+        }
+
+        response()->success(
+            'Đã nhập ' . $summary['created'] . '/' . $summary['total'] . ' khách hàng'
+                . ($summary['skipped'] > 0 ? ', bỏ qua ' . $summary['skipped'] . ' dòng lỗi' : ''),
+            $summary
+        );
+    }
+
+    /** Xuất Spreadsheet ra output dạng tải file .xlsx (send-and-exit). */
+    protected function streamXlsx(Spreadsheet $spreadsheet, string $filename): void
+    {
+        // Ghi thẳng ra output với header tải file — bỏ qua vòng response() JSON.
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Cache-Control: max-age=0, no-store');
+        header('Pragma: public');
+
+        $writer = new Xlsx($spreadsheet);
+        $writer->save('php://output');
+
+        // Giải phóng bộ nhớ + thoát ngay (giống mọi endpoint gọi response()->...; die).
+        $spreadsheet->disconnectWorksheets();
+        exit;
     }
 
     /**
@@ -562,6 +611,51 @@ class CustomerApi extends ApiController
             'direction'     => in_array($direction, self::DEMAND_DIRECTIONS, true) ? $direction : '',
             'is_active'     => (int) $request->input('is_active') === 1 ? 1 : 0,
         ];
+    }
+
+    /**
+     * Dựng query danh sách khách theo filter + data-scope (dùng chung index + export).
+     * Query: keyword (tên/SĐT), pipeline_stage, temperature, assigned_user_id.
+     */
+    protected function buildListQuery(Request $request)
+    {
+        $query = Customer::query();
+
+        // Data-scope: không có quyền xem toàn sàn → chỉ thấy khách của mình + khách "kho chung"
+        // (chưa ai phụ trách) đang KHÔNG bị khóa (khách bị khóa của người khác coi như đã có chủ).
+        if (!$this->canViewAll('customer_view_all'))
+        {
+            $this->applyScope($query);
+        }
+
+        $keyword = trim((string) $request->input('keyword'));
+        if ($keyword !== '')
+        {
+            $like = '%' . $keyword . '%';
+            $query->where(function ($q) use ($like) {
+                $q->where('full_name', 'like', $like)->orWhere('phone', 'like', $like);
+            });
+        }
+
+        $stage = (string) $request->input('pipeline_stage');
+        if (in_array($stage, self::PIPELINE_STAGES, true))
+        {
+            $query->where('pipeline_stage', $stage);
+        }
+
+        $temperature = (string) $request->input('temperature');
+        if (in_array($temperature, self::TEMPERATURES, true))
+        {
+            $query->where('temperature', $temperature);
+        }
+
+        $assigned = (int) $request->input('assigned_user_id');
+        if ($assigned > 0 && $this->canViewAll('customer_view_all'))
+        {
+            $query->where('assigned_user_id', $assigned);
+        }
+
+        return $query;
     }
 
     /**

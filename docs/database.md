@@ -57,6 +57,10 @@ MỘT LẦN trong response — lưu lại và đổi ngay. Khởi tạo trên pr
     (không phải `''`). ⇒ khi build mảng update, cột **NOT NULL** (vd string `default('')`) mà nhận `null`
     → lỗi `Column cannot be null`. **Luôn ép `Str::clear((string) $request->input('x'))`** cho field string.
     (Lỗi runtime này bị middleware `JwtLoginAs` che thành 401 "Invalid token" — đọc `D:/wamp/logs/php_error.log`.)
+- ⚠️ **`Model::get()` static KHÔNG lấy tất cả**: `ModelStatic::get($id = 0)` — `$id` numeric (kể cả mặc
+  định `0`) → `query()->find($id)` (1 bản ghi / `null`); `$id` chuỗi → `first()`. Muốn **lấy toàn bộ** phải
+  dùng **`Model::query()->get()`** (Builder → Collection). Gọi `foreach (Model::get() as …)` khi bảng rỗng →
+  `null` → warning. (Builder `->get()` sau `where`/`whereIn` thì trả Collection đúng như Laravel.)
 
 ## 3. Schema lõi — `database/database.php` (master)
 

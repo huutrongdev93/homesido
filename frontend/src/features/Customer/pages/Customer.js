@@ -12,8 +12,10 @@ import {
 	useDeleteCustomerMutation,
 } from "~/reduxs/api/customerApiSlice";
 import {useGetLeadSourcesQuery} from "~/reduxs/api/catalogApiSlice";
+import {exportCustomers} from "~/api/customerFileApi";
 import CustomerFormModal from "../components/CustomerFormModal";
 import CustomerDetailDrawer from "../components/CustomerDetailDrawer";
+import CustomerImportModal from "../components/CustomerImportModal";
 import style from "../style/Customer.module.scss";
 
 const STAGE_COLORS = {
@@ -50,11 +52,13 @@ function Customer() {
 	const [pageSize, setPageSize] = useState(20);
 	const debouncedKeyword = useDebounce(keyword, 400);
 
-	const params = useMemo(() => ({
-		page, pageSize,
+	// Filter thuần (không phân trang) — dùng cho query list VÀ xuất Excel theo đúng bộ lọc hiện tại.
+	const filterParams = useMemo(() => ({
 		...(debouncedKeyword ? {keyword: debouncedKeyword} : {}),
 		...(stage ? {pipeline_stage: stage} : {}),
-	}), [page, pageSize, debouncedKeyword, stage]);
+	}), [debouncedKeyword, stage]);
+
+	const params = useMemo(() => ({page, pageSize, ...filterParams}), [page, pageSize, filterParams]);
 
 	const {data = {items: [], total: 0}, isFetching, refetch} = useGetCustomersQuery(params);
 
@@ -72,6 +76,8 @@ function Customer() {
 	const [openModal, setOpenModal] = useState({addEdit: false});
 	const [itemEdit, setItemEdit] = useState(null);
 	const [detail, setDetail] = useState(null);   // khách đang mở drawer chi tiết
+	const [openImport, setOpenImport] = useState(false);
+	const [exporting, setExporting] = useState(false);
 
 	const events = {
 		openAdd: () => {
@@ -95,6 +101,16 @@ function Customer() {
 				events.close();
 			} catch (e) {
 				notification.error({message: 'Lỗi', description: rtkErrorMessage(e, 'Lưu khách hàng thất bại')});
+			}
+		},
+		exportExcel: async () => {
+			setExporting(true);
+			try {
+				await exportCustomers(filterParams);
+			} catch (e) {
+				notification.error({message: 'Lỗi', description: 'Xuất Excel thất bại, vui lòng thử lại.'});
+			} finally {
+				setExporting(false);
 			}
 		},
 		remove: (record) => {
@@ -158,10 +174,23 @@ function Customer() {
 				icon="fa-light fa-users"
 				title="Khách hàng"
 				subtitle="Quản lý danh bạ và tiến trình chăm sóc khách hàng"
-				actions={can.add && (
-					<Button primary leftIcon={<FontAwesomeIcon icon="fa-light fa-plus" />} onClick={events.openAdd}>
-						Thêm khách
-					</Button>
+				actions={(
+					<div className={style.headerActions}>
+						<Button outline leftIcon={<FontAwesomeIcon icon="fa-light fa-file-export" />}
+							loading={exporting} onClick={events.exportExcel}>
+							Xuất Excel
+						</Button>
+						{can.add && (
+							<Button outline leftIcon={<FontAwesomeIcon icon="fa-light fa-file-import" />} onClick={() => setOpenImport(true)}>
+								Nhập Excel
+							</Button>
+						)}
+						{can.add && (
+							<Button primary leftIcon={<FontAwesomeIcon icon="fa-light fa-plus" />} onClick={events.openAdd}>
+								Thêm khách
+							</Button>
+						)}
+					</div>
 				)}
 			/>
 
@@ -232,6 +261,8 @@ function Customer() {
 				tempMap={tempMap}
 				onClose={() => setDetail(null)}
 			/>
+
+			<CustomerImportModal open={openImport} onClose={() => setOpenImport(false)} />
 		</div>
 	);
 }

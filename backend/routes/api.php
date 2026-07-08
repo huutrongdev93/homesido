@@ -76,6 +76,10 @@ Route::namespace('App\Controllers\Api')
         Route::post('', 'CustomerApi@add')->name('api.customer.add');
         // Danh sách nhân viên nhận bàn giao (đặt TRƯỚC /{id} để không bị nuốt bởi route param).
         Route::get('/users', 'CustomerApi@assignableUsers')->name('api.customer.users');
+        // Xuất Excel (theo filter) + nhập Excel/CSV — đặt TRƯỚC /{id} để không bị nuốt.
+        Route::get('/export', 'CustomerApi@export')->name('api.customer.export');
+        Route::get('/import-template', 'CustomerApi@importTemplate')->name('api.customer.import.template');
+        Route::post('/import', 'CustomerApi@import')->name('api.customer.import');
         Route::get('/{id}', 'CustomerApi@detail')->name('api.customer.detail');
         Route::put('/{id}', 'CustomerApi@update')->name('api.customer.update');
         Route::delete('/{id}', 'CustomerApi@destroy')->name('api.customer.destroy');

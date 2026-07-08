@@ -53,6 +53,76 @@
 	}
 }
 
+.headerActions {
+	display: inline-flex;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+// ── Nhập Excel (modal) ──
+.importPick {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+	margin-bottom: 10px;
+}
+
+.importDrop {
+	flex: 1 1 320px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 10px;
+	min-height: 64px;
+	padding: 12px 16px;
+	border: 1px dashed var(--border-color);
+	border-radius: var(--radius, 10px);
+	background: var(--surface);
+	color: var(--text-muted);
+	cursor: pointer;
+	font-weight: 500;
+	transition: all .15s ease;
+
+	&:hover {
+		color: var(--primary, #2563eb);
+		border-color: var(--primary, #2563eb);
+	}
+}
+
+.importTpl {
+	border: none;
+	background: none;
+	padding: 6px 4px;
+	cursor: pointer;
+	font-weight: 600;
+	color: var(--primary, #2563eb);
+	white-space: nowrap;
+
+	&:hover {
+		text-decoration: underline;
+	}
+}
+
+.importHint {
+	margin: 0 0 4px;
+	font-size: 13px;
+	color: var(--text-muted);
+}
+
+.importResult {
+	margin-top: 14px;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.importErrors {
+	:global(.ant-table) {
+		font-size: 13px;
+	}
+}
+
 .nameLink {
 	border: none;
 	background: none;

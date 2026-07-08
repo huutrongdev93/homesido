@@ -29,8 +29,6 @@ khi đổi schema và tạo/cập nhật `docs/features/<feature>.md` + index kh
 
 ## Khách hàng — bổ sung còn thiếu (từ kế hoạch GĐ1)
 
-- **Import/Export Excel/CSV** khách hàng (BE có `phpoffice/phpspreadsheet` trong vendor). Import: chống trùng
-  SĐT theo lô, báo dòng lỗi. Export: theo filter hiện tại.
 - **Lead scoring**: tính `lead_score` tự động (tần suất tương tác/giai đoạn) — tick hoặc tính khi có tương tác.
 
 ## Giai đoạn 2 (backlog — làm sau khi GĐ1 xong)

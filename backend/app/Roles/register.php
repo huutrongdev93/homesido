@@ -18,6 +18,7 @@
 
 use App\Roles\RoleCapabilitiesAuth;
 use App\Roles\RoleCapabilitiesCustomer;
+use App\Roles\RoleCapabilitiesMatching;
 use App\Roles\RoleCapabilitiesProperty;
 
 add_filter('role_capabilities_groups', function (array $groups) {
@@ -35,6 +36,11 @@ add_filter('role_capabilities_groups', function (array $groups) {
     $groups['property'] = [
         'label'        => 'Bất động sản',
         'capabilities' => RoleCapabilitiesProperty::all(),
+    ];
+
+    $groups['matching'] = [
+        'label'        => 'Khớp lệnh (Matching)',
+        'capabilities' => RoleCapabilitiesMatching::all(),
     ];
 
     return $groups;

@@ -2,8 +2,12 @@
 
 namespace App\Controllers\Api;
 
+use App\Models\Customer;
+use App\Models\CustomerDemand;
 use App\Models\Property;
+use App\Models\PropertyCustomerMatch;
 use App\Models\PropertyMedia;
+use App\Services\Matching\MatchEngine;
 use App\Services\Storage\PropertyMediaService;
 use Illuminate\Support\Str;
 use SkillDo\Http\Request;
@@ -23,6 +27,9 @@ class PropertyApi extends ApiController
     const VISIBILITIES      = ['private', 'shared'];
     const LEGAL_STATUSES    = ['red_book', 'pink_book', 'sale_contract', 'waiting', 'other'];
     const FURNITURES        = ['none', 'basic', 'full'];
+
+    /** Trần số khách gợi ý trả về (Matching). */
+    const MATCH_LIMIT = 50;
 
     /**
      * GET api/property — danh sách có filter + phân trang, áp data-scope (của tôi + kho chung).
@@ -306,6 +313,117 @@ class PropertyApi extends ApiController
         }
 
         response()->success('Đã cập nhật thứ tự');
+    }
+
+    // ─── Matching (gợi ý khách cho BĐS) ──────────────────────────────────────────────
+
+    /**
+     * GET api/property/{id}/match-customers — gợi ý khách phù hợp 1 BĐS.
+     * Duyệt nhu cầu active (đã lọc sơ theo loại/khu vực để giảm tập), kiểm khớp qua MatchEngine,
+     * gộp theo khách (điểm cao nhất). Áp data-scope khách (của tôi + kho chung chưa khóa) khi
+     * không có customer_view_all. Trả kèm cờ `already_sent`.
+     */
+    public function matchCustomers(Request $request, $id): void
+    {
+        $this->requireCap('matching_view', 'Bạn không có quyền xem gợi ý khớp.');
+
+        $property = $this->findViewable((int) $id);
+
+        // BĐS không còn bán thì không có gì để khớp (MatchEngine cũng loại) → trả rỗng sớm.
+        if ((string) $property->status !== 'available')
+        {
+            response()->success('success', []);
+        }
+
+        // Lọc sơ nhu cầu ở SQL (loại giao dịch + loại hình + tỉnh) để giảm tập; khớp CHÍNH XÁC
+        // (gồm cả khoảng giá) verify bằng MatchEngine::matchesProperty ở PHP — 1 nguồn logic.
+        $demandType = ((string) $property->transaction_type === 'rent') ? 'rent' : 'buy';
+
+        $demandsQuery = CustomerDemand::where('is_active', 1)
+            ->where('demand_type', $demandType)
+            ->where(function ($q) use ($property) {
+                $q->where('property_type', '')->orWhere('property_type', (string) $property->property_type);
+            })
+            ->where(function ($q) use ($property) {
+                $q->where('province_code', 0)->orWhere('province_code', (int) $property->province_code);
+            });
+
+        // Gộp theo khách: giữ điểm cao nhất + nhu cầu tạo ra điểm.
+        $byCustomer = [];
+        foreach ($demandsQuery->get() as $demand)
+        {
+            if (!MatchEngine::matchesProperty($demand, $property))
+            {
+                continue;
+            }
+
+            $cid = (int) $demand->customer_id;
+            $s   = MatchEngine::score($demand, $property);
+
+            if (!isset($byCustomer[$cid]) || $s > $byCustomer[$cid]['score'])
+            {
+                $byCustomer[$cid] = [
+                    'score'     => $s,
+                    'demand_id' => (int) $demand->id,
+                    'reasons'   => MatchEngine::reasons($demand, $property),
+                ];
+            }
+        }
+
+        if (empty($byCustomer))
+        {
+            response()->success('success', []);
+        }
+
+        // Nạp khách trong data-scope (của mình / kho chung chưa khóa) nếu không xem toàn sàn.
+        $custQuery = Customer::whereIn('id', array_keys($byCustomer));
+
+        if (!$this->canViewAll('customer_view_all'))
+        {
+            $me  = $this->userId();
+            $now = date('Y-m-d H:i:s');
+            $custQuery->where(function ($q) use ($me, $now) {
+                $q->where('assigned_user_id', $me)
+                    ->orWhere(function ($shared) use ($now) {
+                        $shared->where('assigned_user_id', 0)
+                            ->where(function ($lock) use ($now) {
+                                $lock->whereNull('locked_until')->orWhere('locked_until', '<=', $now);
+                            });
+                    });
+            });
+        }
+
+        // Khách đã được gửi BĐS này.
+        $sent = [];
+        foreach (PropertyCustomerMatch::where('property_id', $property->id)->get() as $m)
+        {
+            $sent[(int) $m->customer_id] = true;
+        }
+
+        $items = [];
+        foreach ($custQuery->get() as $c)
+        {
+            $cid = (int) $c->id;
+            $m   = $byCustomer[$cid];
+
+            $items[] = [
+                'id'               => $cid,
+                'full_name'        => (string) $c->full_name,
+                'phone'            => (string) $c->phone,
+                'pipeline_stage'   => (string) $c->pipeline_stage,
+                'temperature'      => (string) $c->temperature,
+                'lead_score'       => (int) $c->lead_score,
+                'assigned_user_id' => (int) $c->assigned_user_id,
+                'score'            => (int) $m['score'],
+                'demand_id'        => (int) $m['demand_id'],
+                'reasons'          => $m['reasons'],
+                'already_sent'     => isset($sent[$cid]),
+            ];
+        }
+
+        usort($items, fn ($a, $b) => $b['score'] <=> $a['score']);
+
+        response()->success('success', array_slice($items, 0, self::MATCH_LIMIT));
     }
 
     /** Map 1 media → mảng cho FE (kèm URL công khai). */

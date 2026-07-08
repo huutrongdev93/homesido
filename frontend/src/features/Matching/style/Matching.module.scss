@@ -1,0 +1,30 @@
+// Ô chọn khách / BĐS ở đầu mỗi tab.
+.picker {
+	max-width: 480px;
+	margin-bottom: 16px;
+
+	label {
+		display: block;
+		margin-bottom: 6px;
+		font-weight: 600;
+		color: var(--text);
+	}
+}
+
+// Chip lý do khớp trong bảng gợi ý.
+.reasons {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+}
+
+.reasonChip {
+	display: inline-block;
+	padding: 1px 8px;
+	font-size: 12px;
+	line-height: 18px;
+	border-radius: 10px;
+	background: var(--surface-muted, #f1f5f9);
+	color: var(--text-muted);
+	white-space: nowrap;
+}

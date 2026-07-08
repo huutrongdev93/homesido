@@ -20,10 +20,16 @@ import {
 	useUpdateDemandMutation,
 	useDeleteDemandMutation,
 } from "~/reduxs/api/customerApiSlice";
+import {
+	useGetSuggestedPropertiesQuery,
+	useSendPropertyToCustomerMutation,
+} from "~/reduxs/api/matchingApiSlice";
 import {useGetCareTemplatesQuery} from "~/reduxs/api/catalogApiSlice";
 import {useGetProvincesQuery} from "~/reduxs/api/locationApiSlice";
 import CareFormModal from "~/features/Care/components/CareFormModal";
 import CareCompleteModal from "~/features/Care/components/CareCompleteModal";
+import SendMatchModal from "~/features/Matching/components/SendMatchModal";
+import {fmtPrice, matchScoreColor} from "~/features/Matching/matchUtils";
 import InteractionFormModal from "./InteractionFormModal";
 import CustomerTransferModal from "./CustomerTransferModal";
 import CustomerDemandModal from "./CustomerDemandModal";
@@ -85,6 +91,8 @@ function CustomerDetailDrawer({open, customer, stageMap = {}, tempMap = {}, onCl
 
 	const canEdit = useCan('customer_edit');
 	const canTransfer = useCan('customer_transfer');
+	const canMatchView = useCan('matching_view');
+	const canMatchSend = useCan('matching_send');
 
 	const id = customer?.id;
 	const skip = !open || !id;
@@ -92,6 +100,7 @@ function CustomerDetailDrawer({open, customer, stageMap = {}, tempMap = {}, onCl
 	const {data: cares = []} = useGetCustomerCaresQuery(id, {skip});
 	const {data: interactions = []} = useGetCustomerInteractionsQuery(id, {skip});
 	const {data: demands = []} = useGetCustomerDemandsQuery(id, {skip});
+	const {data: matchProps = []} = useGetSuggestedPropertiesQuery(id, {skip: skip || !canMatchView});
 	const {data: careTemplates = []} = useGetCareTemplatesQuery(undefined, {skip: !open});
 	const {data: provinces = []} = useGetProvincesQuery();
 	const provinceMap = useMemo(() => toMap(provinces), [provinces]);
@@ -104,12 +113,14 @@ function CustomerDetailDrawer({open, customer, stageMap = {}, tempMap = {}, onCl
 	const [addDemand, {isLoading: addingDemand}] = useAddDemandMutation();
 	const [updateDemand, {isLoading: updatingDemand}] = useUpdateDemandMutation();
 	const [deleteDemand] = useDeleteDemandMutation();
+	const [sendProperty, {isLoading: sendingMatch}] = useSendPropertyToCustomerMutation();
 
 	const [openCare, setOpenCare] = useState(false);
 	const [openComplete, setOpenComplete] = useState(null);   // care đang hoàn thành
 	const [openInt, setOpenInt] = useState(false);
 	const [openTransfer, setOpenTransfer] = useState(false);
 	const [openDemand, setOpenDemand] = useState(null);   // false=đóng | {}=thêm | record=sửa
+	const [sendMatch, setSendMatch] = useState(null);   // {propertyId, demand_id, subtitle} | null
 
 	const events = {
 		saveCare: async (data) => {
@@ -189,6 +200,15 @@ function CustomerDetailDrawer({open, customer, stageMap = {}, tempMap = {}, onCl
 				},
 			});
 		},
+		sendMatch: async (note) => {
+			try {
+				await sendProperty({customerId: id, propertyId: sendMatch.propertyId, demand_id: sendMatch.demand_id || 0, note}).unwrap();
+				setSendMatch(null);
+				notification.success({message: 'Thành công', description: 'Đã gửi sản phẩm cho khách'});
+			} catch (e) {
+				notification.error({message: 'Lỗi', description: rtkErrorMessage(e, 'Gửi sản phẩm thất bại')});
+			}
+		},
 	};
 
 	return (
@@ -256,6 +276,34 @@ function CustomerDetailDrawer({open, customer, stageMap = {}, tempMap = {}, onCl
 								);
 							})}
 					</section>
+
+					{/* GỢI Ý BĐS (Matching) */}
+					{canMatchView && (
+						<section className={style.section}>
+							<div className={style.sectionHead}>
+								<h4><FontAwesomeIcon icon="fa-light fa-arrows-repeat" /> Gợi ý bất động sản</h4>
+							</div>
+							{matchProps.length === 0
+								? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Chưa có BĐS phù hợp" />
+								: matchProps.slice(0, 8).map((p) => (
+									<div key={p.id} className={style.demandItem}>
+										<div className={style.demandMain}>
+											<Tag color={matchScoreColor(p.score || 0)}>{p.score || 0}</Tag>
+											<span className={style.demandType}>{p.code} — {p.title}</span>
+											{p.already_sent && <Tag color="success">Đã gửi</Tag>}
+										</div>
+										<p className={style.demandCriteria}>
+											💰 {fmtPrice(p.price)}{p.reasons?.length ? '  ·  ' + p.reasons.join('  ·  ') : ''}
+										</p>
+										{canMatchSend && !p.already_sent && (
+											<div className={style.careActions}>
+												<button type="button" onClick={() => setSendMatch({propertyId: p.id, demand_id: p.demand_id, subtitle: `${p.code} — ${p.title}`})}>Gửi cho khách</button>
+											</div>
+										)}
+									</div>
+								))}
+						</section>
+					)}
 
 					{/* CHĂM SÓC */}
 					<section className={style.section}>
@@ -332,6 +380,8 @@ function CustomerDetailDrawer({open, customer, stageMap = {}, tempMap = {}, onCl
 				loading={addingDemand || updatingDemand}
 				options={{demandTypes, propertyTypes, purposes, directions}}
 				onCancel={() => setOpenDemand(null)} onSubmit={events.saveDemand} />
+			<SendMatchModal open={!!sendMatch} subtitle={sendMatch?.subtitle} loading={sendingMatch}
+				onCancel={() => setSendMatch(null)} onSubmit={events.sendMatch} />
 		</Drawer>
 	);
 }

@@ -1,9 +1,18 @@
-import {useContext, useMemo} from "react";
+import {useContext, useMemo, useState} from "react";
+import {App as AntdApp, Tag} from "antd";
 import dayjs from "dayjs";
 import {AppContext} from "~/context/AppProvider";
+import {useCan} from "~/hooks";
 import {FontAwesomeIcon} from "~/components";
 import {useGetPropertyQuery} from "~/reduxs/api/propertyApiSlice";
+import {
+	useGetMatchingCustomersQuery,
+	useSendPropertyToCustomerMutation,
+} from "~/reduxs/api/matchingApiSlice";
 import {useGetProvincesQuery, useGetWardsQuery} from "~/reduxs/api/locationApiSlice";
+import {rtkErrorMessage} from "~/reduxs/api/apiSlice";
+import SendMatchModal from "~/features/Matching/components/SendMatchModal";
+import {matchScoreColor} from "~/features/Matching/matchUtils";
 import {formatBytes} from "./PropertyMediaModal";
 import style from "../style/Property.module.scss";
 
@@ -59,8 +68,27 @@ function PropertyDetailPanel({property, canEdit, onEdit, onMedia}) {
 		furniture: toMap(enums.furnitures),
 	}), [enums]);
 
+	const {notification} = AntdApp.useApp();
+	const canMatchView = useCan('matching_view');
+	const canMatchSend = useCan('matching_send');
+
 	const {data: detail, isFetching} = useGetPropertyQuery(property.id, {skip: !property?.id});
 	const p = detail || property;
+
+	// Khách phù hợp BĐS này (Matching) — chỉ nạp khi có quyền xem.
+	const {data: matchCustomers = []} = useGetMatchingCustomersQuery(property.id, {skip: !property?.id || !canMatchView});
+	const [sendProperty, {isLoading: sendingMatch}] = useSendPropertyToCustomerMutation();
+	const [send, setSend] = useState(null);   // {customerId, demand_id, subtitle} | null
+
+	const submitSend = async (note) => {
+		try {
+			await sendProperty({customerId: send.customerId, propertyId: property.id, demand_id: send.demand_id || 0, note}).unwrap();
+			setSend(null);
+			notification.success({message: 'Thành công', description: 'Đã gửi sản phẩm cho khách'});
+		} catch (e) {
+			notification.error({message: 'Lỗi', description: rtkErrorMessage(e, 'Gửi sản phẩm thất bại')});
+		}
+	};
 
 	const {data: provinces = []} = useGetProvincesQuery();
 	const {data: wards = []} = useGetWardsQuery(p.province_code, {skip: !p.province_code});
@@ -150,6 +178,40 @@ function PropertyDetailPanel({property, canEdit, onEdit, onMedia}) {
 				</div>
 			</div>
 
+			{/* Khách hàng phù hợp (Matching) */}
+			{canMatchView && (
+				<div className={style.dCard}>
+					<div className={style.dCardHead}>
+						<FontAwesomeIcon icon="fa-light fa-users" /> KHÁCH HÀNG PHÙ HỢP
+						<span className={style.dCardCount}>{matchCustomers.length}</span>
+					</div>
+					{matchCustomers.length === 0 ? (
+						<div className={style.dMediaEmpty}>
+							<FontAwesomeIcon icon="fa-light fa-user-slash" /> Chưa có khách phù hợp
+						</div>
+					) : (
+						<div className={style.matchList}>
+							{matchCustomers.slice(0, 8).map((c) => (
+								<div key={c.id} className={style.matchRow}>
+									<Tag color={matchScoreColor(c.score || 0)}>{c.score || 0}</Tag>
+									<div className={style.matchInfo}>
+										<div className={style.matchName}>{c.full_name} <span>{c.phone}</span></div>
+										{c.reasons?.length > 0 && <div className={style.matchReasons}>{c.reasons.join('  ·  ')}</div>}
+									</div>
+									{c.already_sent
+										? <Tag color="success">Đã gửi</Tag>
+										: canMatchSend && (
+											<button type="button" className={style.dBtn} onClick={() => setSend({customerId: c.id, demand_id: c.demand_id, subtitle: c.full_name})}>
+												<FontAwesomeIcon icon="fa-light fa-paper-plane" /> Gửi
+											</button>
+										)}
+								</div>
+							))}
+						</div>
+					)}
+				</div>
+			)}
+
 			{/* Thư viện ảnh / video / tài liệu */}
 			<div className={style.dCard}>
 				<div className={style.dCardHead}>
@@ -208,6 +270,9 @@ function PropertyDetailPanel({property, canEdit, onEdit, onMedia}) {
 				<span><FontAwesomeIcon icon="fa-light fa-eye" /> {p.visibility === 'shared' ? 'Kho chung' : 'Riêng của tôi'}</span>
 				{isFetching && <span className={style.dLoading}><FontAwesomeIcon icon="fa-light fa-spinner" spin /> Đang tải…</span>}
 			</div>
+
+			<SendMatchModal open={!!send} subtitle={send?.subtitle} loading={sendingMatch}
+				onCancel={() => setSend(null)} onSubmit={submitSend} />
 		</div>
 	);
 }

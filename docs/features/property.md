@@ -71,4 +71,6 @@ Bất động sản (Property)
   `detail` trả `media:[]` với `url`/`size`. Xóa mềm GIỮ media; xóa hẳn (`DELETE ?force=1`) mới purge.
 - Các gotcha chung (base Model ép `''`/`0`, data-scope thủ công, xóa mềm `->trash()`, enum từ api/utils,
   lỗi nghiệp vụ `->setStatusCode(422)`): xem [customer.md](customer.md) + [../database.md](../database.md) §2.
+- **Matching** (gợi ý khách phù hợp BĐS + gửi SP): panel chi tiết có card "Khách hàng phù hợp" — xem
+  [matching.md](matching.md). `PropertyApi::matchCustomers` áp scope khách.
 

@@ -16,6 +16,7 @@ export const NavBarData = () => {
 	const canPermission = useCan('permission');
 	const canCustomer = useCan('customer_view');
 	const canProperty = useCan('property_view');
+	const canMatching = useCan('matching_view');
 	const isAdmin = useIsAdmin();
 
 	// ===== TỔNG QUAN =====
@@ -59,6 +60,16 @@ export const NavBarData = () => {
 			title: 'Bất động sản',
 			to: '/properties',
 			icon: <FontAwesomeIcon icon="fa-light fa-building" />,
+			count: 0,
+		});
+	}
+	if (canMatching) {
+		business.push({
+			key: 'matching',
+			label: <Link to="/matching">Khớp lệnh</Link>,
+			title: 'Khớp lệnh',
+			to: '/matching',
+			icon: <FontAwesomeIcon icon="fa-light fa-arrows-repeat" />,
 			count: 0,
 		});
 	}

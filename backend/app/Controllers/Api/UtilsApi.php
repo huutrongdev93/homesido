@@ -138,6 +138,14 @@ class UtilsApi extends Controller
                         ['value' => 'walk_alley', 'label' => 'Hẻm bộ'],
                     ],
                 ],
+                'matching' => [
+                    // Trạng thái 1 lần "gửi SP cho khách" (property_customer_matches.status).
+                    'statuses' => [
+                        ['value' => 'sent',       'label' => 'Đã gửi'],
+                        ['value' => 'interested', 'label' => 'Khách quan tâm'],
+                        ['value' => 'rejected',   'label' => 'Khách từ chối'],
+                    ],
+                ],
             ],
         ];
 
@@ -188,6 +196,7 @@ class UtilsApi extends Controller
             'database/crm.php',
             'database/media.php',
             'database/property.php',
+            'database/matching.php',
         ];
 
         foreach ($migrations as $migrationFile)

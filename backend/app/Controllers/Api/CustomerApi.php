@@ -6,8 +6,11 @@ use App\Models\Customer;
 use App\Models\CustomerDemand;
 use App\Models\CustomerInteraction;
 use App\Models\CustomerTransfer;
+use App\Models\Property;
+use App\Models\PropertyCustomerMatch;
 use App\Services\Customer\CustomerSheet;
 use App\Services\Customer\LeadScorer;
+use App\Services\Matching\MatchEngine;
 use App\Services\Notification\Notifier;
 use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -42,6 +45,12 @@ class CustomerApi extends ApiController
 
     /** Chức vụ KHÔNG cho phép nhận bàn giao khách (siêu quản trị / master framework). */
     const NON_ASSIGNABLE_ROLES = ['administrator', 'root'];
+
+    /** Trạng thái hợp lệ cho 1 lần "gửi SP cho khách" (property_customer_matches). */
+    const MATCH_STATUSES = ['sent', 'interested', 'rejected'];
+
+    /** Trần số gợi ý trả về (Matching) — đủ dùng, tránh trả cả kho. */
+    const MATCH_LIMIT = 50;
 
     /**
      * GET api/customer — danh sách có filter + phân trang, áp data-scope.
@@ -404,6 +413,310 @@ class CustomerApi extends ApiController
         CustomerDemand::where('id', $demand->id)->delete();
 
         response()->success('Đã xóa nhu cầu', ['id' => (int) $demand->id]);
+    }
+
+    // ─── Matching (gợi ý BĐS cho khách + gửi SP) ─────────────────────────────────────
+
+    /**
+     * GET api/customer/{id}/match-properties?demand_id= — gợi ý BĐS khớp nhu cầu khách.
+     * Duyệt nhu cầu is_active (hoặc 1 nhu cầu nếu truyền demand_id), so với kho qua MatchEngine,
+     * gộp BĐS theo id giữ điểm cao nhất. Áp data-scope BĐS (của tôi + kho chung) khi không
+     * có property_view_all. Trả kèm cờ `already_sent`.
+     */
+    public function matchProperties(Request $request, $id): void
+    {
+        $this->requireCap('matching_view', 'Bạn không có quyền xem gợi ý khớp.');
+
+        $customer = $this->findOwned((int) $id);
+
+        $demands = $this->demandsToMatch((int) $customer->id, (int) $request->input('demand_id'));
+
+        // Gộp BĐS theo id: giữ điểm cao nhất + nhu cầu tạo ra điểm đó.
+        $best = [];
+        foreach ($demands as $demand)
+        {
+            $query = MatchEngine::matchQueryForDemand($demand);
+            if ($query === null)
+            {
+                continue;
+            }
+
+            // Data-scope BĐS: không có quyền toàn sàn → chỉ hàng của mình + kho chung (shared).
+            if (!$this->canViewAll('property_view_all'))
+            {
+                $me = $this->userId();
+                $query->where(function ($q) use ($me) {
+                    $q->where('assigned_user_id', $me)->orWhere('visibility', 'shared');
+                });
+            }
+
+            foreach ($query->orderByDesc('id')->limit(self::MATCH_LIMIT)->get() as $row)
+            {
+                $pid   = (int) $row->id;
+                $score = MatchEngine::score($demand, $row);
+
+                if (!isset($best[$pid]) || $score > $best[$pid]['score'])
+                {
+                    $best[$pid] = [
+                        'property'  => $row,
+                        'score'     => $score,
+                        'demand_id' => (int) $demand->id,
+                        'reasons'   => MatchEngine::reasons($demand, $row),
+                    ];
+                }
+            }
+        }
+
+        // Đánh dấu BĐS đã gửi cho khách này.
+        $sent = [];
+        foreach (PropertyCustomerMatch::where('customer_id', $customer->id)->get() as $m)
+        {
+            $sent[(int) $m->property_id] = true;
+        }
+
+        $items = [];
+        foreach ($best as $pid => $b)
+        {
+            $items[] = $this->transformMatchProperty($b, isset($sent[$pid]));
+        }
+
+        usort($items, fn ($a, $b) => $b['score'] <=> $a['score']);
+
+        response()->success('success', array_slice($items, 0, self::MATCH_LIMIT));
+    }
+
+    /**
+     * GET api/customer/{id}/matches — lịch sử SP đã gửi cho khách (kèm mã/tiêu đề BĐS).
+     */
+    public function matches(Request $request, $id): void
+    {
+        $this->requireCap('matching_view', 'Bạn không có quyền xem gợi ý khớp.');
+
+        $customer = $this->findOwned((int) $id);
+
+        $rows = PropertyCustomerMatch::where('customer_id', $customer->id)->orderByDesc('id')->get();
+
+        // Nạp BĐS theo lô để hiện mã/tiêu đề (tránh N+1).
+        $propIds = [];
+        foreach ($rows as $r)
+        {
+            $propIds[] = (int) $r->property_id;
+        }
+
+        $props = [];
+        if (!empty($propIds))
+        {
+            foreach (Property::whereIn('id', array_values(array_unique($propIds)))->get() as $p)
+            {
+                $props[(int) $p->id] = $p;
+            }
+        }
+
+        $items = [];
+        foreach ($rows as $r)
+        {
+            $p = $props[(int) $r->property_id] ?? null;
+            $items[] = [
+                'id'          => (int) $r->id,
+                'property_id' => (int) $r->property_id,
+                'code'        => $p ? (string) $p->code : '',
+                'title'       => $p ? (string) $p->title : '(BĐS đã xóa)',
+                'price'       => $p ? (float) $p->price : 0,
+                'score'       => (int) $r->score,
+                'status'      => (string) $r->status,
+                'note'        => (string) ($r->note ?? ''),
+                'created'     => $r->created,
+            ];
+        }
+
+        response()->success('success', $items);
+    }
+
+    /**
+     * POST api/customer/{id}/matches — "gửi sản phẩm cho khách". Ghi/ cập nhật 1 dòng
+     * property_customer_matches (1 cặp khách–BĐS) + ghi 1 tương tác vào timeline + touch khách.
+     * Body: property_id (bắt buộc), demand_id (tuỳ chọn), note (tuỳ chọn).
+     */
+    public function sendMatch(Request $request, $id): void
+    {
+        $this->requireCap('matching_send', 'Bạn không có quyền gửi sản phẩm cho khách.');
+
+        $customer = $this->findOwned((int) $id);
+
+        $propertyId = (int) $request->input('property_id');
+        if ($propertyId <= 0)
+        {
+            response()->setStatusCode(422)->setApiStatus(422)->error('Vui lòng chọn bất động sản để gửi.');
+        }
+
+        $property = Property::where('id', $propertyId)->first();
+        if (!hasItems($property))
+        {
+            response()->setStatusCode(404)->setApiStatus(404)->error('Bất động sản không tồn tại.');
+        }
+
+        $note = Str::clear((string) $request->input('note'));
+
+        // Điểm khớp + nhu cầu khớp tốt nhất (ưu tiên demand_id nếu truyền).
+        $matchedDemandId = 0;
+        $score = $this->bestScoreFor((int) $customer->id, $property, (int) $request->input('demand_id'), $matchedDemandId);
+
+        // Upsert 1 dòng/cặp (gửi lại thì cập nhật thay vì tạo trùng).
+        $existing = PropertyCustomerMatch::where('customer_id', $customer->id)->where('property_id', $propertyId)->first();
+
+        if (hasItems($existing))
+        {
+            PropertyCustomerMatch::where('id', $existing->id)->update([
+                'demand_id' => $matchedDemandId,
+                'user_id'   => $this->userId(),
+                'score'     => $score,
+                'status'    => 'sent',
+                'note'      => $note,
+            ]);
+            $matchId = (int) $existing->id;
+        }
+        else
+        {
+            $matchId = (int) PropertyCustomerMatch::create([
+                'customer_id' => (int) $customer->id,
+                'property_id' => $propertyId,
+                'demand_id'   => $matchedDemandId,
+                'user_id'     => $this->userId(),
+                'score'       => $score,
+                'status'      => 'sent',
+                'note'        => $note,
+            ]);
+        }
+
+        // Ghi 1 tương tác vào timeline khách (đây là "nhịp chăm sóc" — như addInteraction).
+        $content = 'Đã gửi SP ' . trim((string) $property->code . ' — ' . (string) $property->title);
+        if ($note !== '')
+        {
+            $content .= ' | Ghi chú: ' . $note;
+        }
+
+        CustomerInteraction::create([
+            'customer_id'   => (int) $customer->id,
+            'user_id'       => $this->userId(),
+            'type'          => 'note',
+            'content'       => $content,
+            'direction'     => 'out',
+            'interacted_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        // Sales gửi SP cho khách kho chung → tự nhận (auto-claim, giống addInteraction).
+        if (!$this->canViewAll('customer_view_all') && (int) $customer->assigned_user_id === 0)
+        {
+            Customer::where('id', $customer->id)->update(['assigned_user_id' => $this->userId()]);
+        }
+
+        Customer::touch((int) $customer->id);
+        LeadScorer::recompute((int) $customer->id);
+
+        response()->success('Đã gửi sản phẩm cho khách', ['id' => $matchId]);
+    }
+
+    /**
+     * PUT api/customer/{id}/matches/{matchId} — cập nhật phản hồi khách (status) + ghi chú.
+     */
+    public function updateMatchStatus(Request $request, $id, $matchId): void
+    {
+        $this->requireCap('matching_send', 'Bạn không có quyền cập nhật gợi ý.');
+
+        $customer = $this->findOwned((int) $id);
+
+        $match = PropertyCustomerMatch::where('id', (int) $matchId)->where('customer_id', $customer->id)->first();
+        if (!hasItems($match))
+        {
+            response()->setStatusCode(404)->setApiStatus(404)->error('Bản ghi gửi SP không tồn tại.');
+        }
+
+        $status = (string) $request->input('status');
+
+        $data = ['note' => Str::clear((string) $request->input('note'))];
+        if (in_array($status, self::MATCH_STATUSES, true))
+        {
+            $data['status'] = $status;
+        }
+
+        PropertyCustomerMatch::where('id', $match->id)->update($data);
+
+        response()->success('Đã cập nhật trạng thái', ['id' => (int) $match->id]);
+    }
+
+    /** Nhu cầu đem so khớp: 1 nhu cầu nếu truyền demandId, ngược lại các nhu cầu đang bật. */
+    protected function demandsToMatch(int $customerId, int $demandId)
+    {
+        $query = CustomerDemand::where('customer_id', $customerId);
+
+        if ($demandId > 0)
+        {
+            $query->where('id', $demandId);
+        }
+        else
+        {
+            $query->where('is_active', 1);
+        }
+
+        return $query->get();
+    }
+
+    /**
+     * Điểm khớp tốt nhất giữa 1 BĐS và các nhu cầu của khách (ưu tiên preferDemandId nếu truyền).
+     * Gán $matchedDemandId = nhu cầu cho điểm cao nhất (0 nếu không nhu cầu nào thỏa hard filter).
+     */
+    protected function bestScoreFor(int $customerId, $property, int $preferDemandId, ?int &$matchedDemandId): int
+    {
+        $matchedDemandId = 0;
+        $best = 0;
+
+        foreach ($this->demandsToMatch($customerId, $preferDemandId) as $demand)
+        {
+            if (!MatchEngine::matchesProperty($demand, $property))
+            {
+                continue;
+            }
+
+            $s = MatchEngine::score($demand, $property);
+            if ($s >= $best)
+            {
+                $best = $s;
+                $matchedDemandId = (int) $demand->id;
+            }
+        }
+
+        // Chỉ định nhu cầu nhưng BĐS không thỏa hard filter → vẫn cho gửi thủ công gắn nhu cầu đó.
+        if ($preferDemandId > 0 && $matchedDemandId === 0)
+        {
+            $matchedDemandId = $preferDemandId;
+        }
+
+        return $best;
+    }
+
+    /** Map 1 BĐS gợi ý (kèm điểm/nhu cầu/lý do) → mảng cho FE. */
+    protected function transformMatchProperty(array $b, bool $alreadySent): array
+    {
+        $p = $b['property'];
+
+        return [
+            'id'               => (int) $p->id,
+            'code'             => (string) $p->code,
+            'title'            => (string) $p->title,
+            'property_type'    => (string) $p->property_type,
+            'transaction_type' => (string) $p->transaction_type,
+            'price'            => (float) $p->price,
+            'area_usable'      => (float) $p->area_usable,
+            'area_land'        => (float) $p->area_land,
+            'bedrooms'         => (int) $p->bedrooms,
+            'province_code'    => (int) $p->province_code,
+            'ward_code'        => (int) $p->ward_code,
+            'status'           => (string) $p->status,
+            'score'            => (int) $b['score'],
+            'demand_id'        => (int) $b['demand_id'],
+            'reasons'          => $b['reasons'],
+            'already_sent'     => $alreadySent,
+        ];
     }
 
     /**

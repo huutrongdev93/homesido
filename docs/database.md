@@ -254,6 +254,18 @@ Index: `(scheduled_at, status)`, `(assigned_user_id, status)`.
 ### `customer_transfers` — Lịch sử bàn giao khách
 `id` · `customer_id` (index) · `from_user_id` · `to_user_id` · `transferred_by` · `reason` · `created`.
 
+## 4b. Bảng nghiệp vụ — Giai đoạn 2 (Matching)
+
+Nguồn: `database/matching.php` (đăng ký thứ 5 trong `$migrations`, sau `property.php`). Timestamps house-style.
+
+### `property_customer_matches` — "Gửi SP cho khách" (Matching)
+Lưu **hành động** sales gửi 1 BĐS cho 1 khách (log, giống `customer_transfers`) — **KHÔNG** cache kết quả so khớp (việc so khớp tính on-the-fly bởi `App\Services\Matching\MatchEngine`). Mỗi cặp (khách, BĐS) tối đa 1 dòng (gửi lại → cập nhật). Model: `App\Models\PropertyCustomerMatch`.
+
+`id` · `customer_id` (index) · `property_id` (index) · `demand_id` (nhu cầu khớp; 0 = gửi thủ công) · `user_id` (người gửi) · `score` int (điểm khớp 0–100 lúc gửi) · `status` string(20) default `sent` (**string, KHÔNG enum** — `sent`/`interested`/`rejected`; validate ở controller) · `note` · `created` · `updated`.
+Index: `(customer_id, property_id)` (dedup cặp), `(property_id)`.
+
+> Gửi SP (`POST api/customer/{id}/matches`) còn ghi 1 `customer_interactions` (type `note`, "Đã gửi SP …") + `Customer::touch()` — nhịp chăm sóc như `addInteraction`. Xem [`features/matching.md`](features/matching.md).
+
 ## 5. Thêm bảng/cột mới (checklist)
 
 1. Tạo `backend/database/<ten>.php` — trả `Migration` ẩn danh, `up()` guard `hasTable`/`hasColumn`,

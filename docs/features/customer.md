@@ -113,7 +113,7 @@ Khách hàng (Customer)
 - 1 khách có **nhiều nhu cầu** (mua/thuê/bán/ký gửi). Mỗi nhu cầu là bộ tiêu chí tìm BĐS: `demand_type`,
   `property_type` (enum `property.property_types`), `purpose` (`live`/`invest` — enum `customer.purposes`),
   `province_code`/`ward_code` (LocationApi), `budget_min/max` (VNĐ), `area_min/max` (m²), `bedrooms_min`,
-  `direction` (enum `property.directions`), `is_active`. **Nền cho Matching GĐ2** (`property_customer_matches`).
+  `direction` (enum `property.directions`), `is_active`. **Nền cho Matching** — xem [matching.md](matching.md).
 - **CRUD trong drawer chi tiết khách** (section "Nhu cầu / tiêu chí"): `CustomerDemandModal` (thêm/sửa) +
   nút Xóa (confirm). RTK Query tag **`Demand`** — mutation invalidate → danh sách nhu cầu tự refetch.
   `detail()` vẫn trả kèm `demands[]` (dùng chung helper `transformDemand`/`listDemands`).

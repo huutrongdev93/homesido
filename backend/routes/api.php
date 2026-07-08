@@ -93,6 +93,11 @@ Route::namespace('App\Controllers\Api')
         Route::post('/{id}/demands', 'CustomerApi@addDemand')->name('api.customer.demands.add');
         Route::put('/{id}/demands/{demandId}', 'CustomerApi@updateDemand')->name('api.customer.demands.update');
         Route::delete('/{id}/demands/{demandId}', 'CustomerApi@destroyDemand')->name('api.customer.demands.destroy');
+        // Matching: gợi ý BĐS cho khách + gửi SP (ghi lịch sử + timeline). Cap matching_view/matching_send.
+        Route::get('/{id}/match-properties', 'CustomerApi@matchProperties')->name('api.customer.matchProperties');
+        Route::get('/{id}/matches', 'CustomerApi@matches')->name('api.customer.matches');
+        Route::post('/{id}/matches', 'CustomerApi@sendMatch')->name('api.customer.matches.send');
+        Route::put('/{id}/matches/{matchId}', 'CustomerApi@updateMatchStatus')->name('api.customer.matches.update');
     });
 
 /**
@@ -132,6 +137,8 @@ Route::namespace('App\Controllers\Api')
         Route::post('/{id}/media', 'PropertyApi@mediaUpload')->name('api.property.media.upload');
         Route::put('/{id}/media/reorder', 'PropertyApi@mediaReorder')->name('api.property.media.reorder');
         Route::delete('/{id}/media/{mediaId}', 'PropertyApi@mediaDelete')->name('api.property.media.delete');
+        // Matching: gợi ý khách phù hợp BĐS này. Cap matching_view.
+        Route::get('/{id}/match-customers', 'PropertyApi@matchCustomers')->name('api.property.matchCustomers');
     });
 
 /**

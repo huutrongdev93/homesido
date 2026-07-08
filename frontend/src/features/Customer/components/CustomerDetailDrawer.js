@@ -39,6 +39,9 @@ const CARE_STATUS = {
 const toMap = (arr = []) => arr.reduce((m, o) => ({...m, [o.value]: o.label}), {});
 const fmt = (v) => (v ? dayjs(v).format('DD/MM/YYYY HH:mm') : '');
 
+// Màu theo điểm tiềm năng (0–100): càng cao càng "nóng".
+const scoreColor = (s) => (s >= 70 ? 'green' : s >= 40 ? 'gold' : s > 0 ? 'blue' : 'default');
+
 /** Số tiền VNĐ → chuỗi gọn (tỷ / triệu). Trả '' nếu 0/rỗng. */
 const money = (vnd) => {
 	const n = Number(vnd) || 0;
@@ -203,6 +206,7 @@ function CustomerDetailDrawer({open, customer, stageMap = {}, tempMap = {}, onCl
 						<div className={style.tags}>
 							{customer.pipeline_stage && <Tag>{stageMap[customer.pipeline_stage] || customer.pipeline_stage}</Tag>}
 							{customer.temperature && <Tag>{tempMap[customer.temperature] || customer.temperature}</Tag>}
+							<Tag color={scoreColor(customer.lead_score || 0)}>Điểm {customer.lead_score || 0}</Tag>
 						</div>
 						{canTransfer && (
 							<Button small outline leftIcon={<FontAwesomeIcon icon="fa-light fa-arrow-right-arrow-left" />} onClick={() => setOpenTransfer(true)}>

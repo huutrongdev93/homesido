@@ -31,6 +31,7 @@ Khách hàng (Customer)
        ├─ app/Models/CustomerDemand.php                     # nhu cầu/tiêu chí (detail trả kèm demands[])
        ├─ app/Models/CustomerTransfer.php                   # lịch sử bàn giao (append-only): from/to/by/reason
        ├─ app/Services/Customer/CustomerSheet.php           # xuất/nhập Excel (PhpSpreadsheet): buildExport()/buildTemplate() + import() (parse + chống trùng SĐT theo lô + báo dòng lỗi)
+       ├─ app/Services/Customer/LeadScorer.php              # chấm điểm tiềm năng (lead_score 0–100): computeScore() thuần + recompute() (sau tương tác/sửa) + tick() nền (lead-score-tick 02:00)
        ├─ app/Services/Care/CustomerRelease.php             # tick customer-release-tick (01:00): trả khách quá hạn khóa về kho chung + báo sales cũ
        └─ bảng DB: customers, customer_demands, customer_transfers (database/crm.php)
 ```
@@ -71,6 +72,21 @@ Khách hàng (Customer)
 - **Auto-release (`customer-release-tick`, 01:00 hằng ngày)**: `App\Services\Care\CustomerRelease` —
   khách `locked_until < now` (lâu không ai `touch`), `assigned_user_id > 0`, không won/lost → trả về
   kho chung (`assigned_user_id = 0`, `locked_until = null`) + báo sales cũ. Lô `BATCH = 300`.
+
+## Lead scoring (LeadScorer)
+
+- `customers.lead_score` (0–100) tính tự động từ 4 tín hiệu (hàm thuần `LeadScorer::computeScore`):
+  **giai đoạn phễu** (`STAGE_BASE`: new 5 · contacting 20 · potential 40 · negotiating 65; **won = 100,
+  lost = 0** chốt cứng) + **tần suất tương tác** (mỗi tương tác +2, trần 20) + **độ mới** của
+  `last_interaction_at` (≤3 ngày +15 · ≤7 +10 · ≤14 +5 · else 0) + **nhiệt độ** (hot 15 · warm 5 · cold 0);
+  clamp 0–100.
+- **Tính lại tức thì** (`recompute($id)`, fire-and-forget, tự nuốt lỗi) sau: `add`, `update`
+  (giai đoạn/nhiệt độ đổi), `addInteraction`, `CareApi::complete` (có tương tác mới). Import tính **inline**
+  lúc tạo (`computeScore(stage, temp, 0, null)`, tránh N+1).
+- **Tick nền** `lead-score-tick` (02:00) rescore toàn bộ để phản ánh **suy giảm độ mới** theo thời gian
+  (không sự kiện nào kích hoạt khi ngày trôi qua) — xem bảng tick ở [care.md](care.md).
+- FE: cột **"Điểm"** trong danh sách khách + tag trong drawer head (màu theo ngưỡng ≥70 xanh · ≥40 vàng ·
+  >0 lam). ⚠️ Điểm trong drawer lấy từ record của list (có thể cũ tới lần refetch kế) — cột list là nguồn tin cậy.
 
 ## Import / Export Excel (CustomerSheet)
 

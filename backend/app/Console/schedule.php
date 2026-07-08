@@ -17,6 +17,7 @@
 use App\Services\Care\CareReminder;
 use App\Services\Care\ColdDetector;
 use App\Services\Care\CustomerRelease;
+use App\Services\Customer\LeadScorer;
 use App\Services\Notification\PushQueue;
 use Illuminate\Console\Scheduling\Schedule;
 use SkillDo\Log\Log;
@@ -113,3 +114,27 @@ app(Schedule::class)->call(function () {
         ]);
     }
 })->dailyAt('01:00')->name('customer-release-tick');
+
+/**
+ * Tick chấm lại điểm tiềm năng khách (hằng ngày lúc 02:00). Rescore toàn bộ để phản ánh SUY GIẢM
+ * độ mới của tương tác theo thời gian (không sự kiện nào kích hoạt khi ngày trôi qua).
+ * Xem App\Services\Customer\LeadScorer.
+ */
+app(Schedule::class)->call(function () {
+
+    try
+    {
+        $summary = (new LeadScorer())->tick();
+
+        if (array_sum($summary) > 0)
+        {
+            Log::info('Lead score tick', $summary);
+        }
+    }
+    catch (\Throwable $e)
+    {
+        Log::error('Lead score tick error: ' . $e->getMessage(), [
+            'trace' => $e->getTraceAsString(),
+        ]);
+    }
+})->dailyAt('02:00')->name('lead-score-tick');

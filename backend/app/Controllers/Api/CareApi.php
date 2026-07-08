@@ -5,6 +5,7 @@ namespace App\Controllers\Api;
 use App\Models\Customer;
 use App\Models\CareSchedule;
 use App\Models\CustomerInteraction;
+use App\Services\Customer\LeadScorer;
 use Illuminate\Support\Str;
 use SkillDo\Http\Request;
 use SkillDo\Validate\Rule;
@@ -175,6 +176,9 @@ class CareApi extends ApiController
 
         // Cập nhật mốc chăm sóc + gỡ cờ nguội + gia hạn khóa (đang chăm tích cực).
         Customer::touch((int) $care->customer_id);
+
+        // Có tương tác mới → chấm lại điểm tiềm năng.
+        LeadScorer::recompute((int) $care->customer_id);
 
         // Tuỳ chọn: đặt lịch chăm tiếp theo.
         $next = trim((string) $request->input('next_scheduled_at'));

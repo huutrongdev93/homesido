@@ -24,6 +24,9 @@ const STAGE_COLORS = {
 };
 const TEMP_COLORS = {hot: 'red', warm: 'gold', cold: 'blue'};
 
+// Màu theo điểm tiềm năng (0–100): càng cao càng "nóng".
+const scoreColor = (s) => (s >= 70 ? 'green' : s >= 40 ? 'gold' : s > 0 ? 'blue' : 'default');
+
 const toMap = (arr = []) => arr.reduce((m, o) => ({...m, [o.value]: o.label}), {});
 
 function Customer() {
@@ -148,6 +151,10 @@ function Customer() {
 		{
 			title: 'Quan tâm', dataIndex: 'temperature', key: 'temperature', width: 100,
 			render: (v) => <Tag color={TEMP_COLORS[v] || 'default'}>{tempMap[v] || v}</Tag>,
+		},
+		{
+			title: 'Điểm', dataIndex: 'lead_score', key: 'lead_score', width: 80, align: 'center',
+			render: (v) => <Tag color={scoreColor(v || 0)}>{v || 0}</Tag>,
 		},
 		{
 			title: '', key: 'actions', width: 90, align: 'right',

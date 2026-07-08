@@ -59,6 +59,7 @@ Cron gọi `schedule-run` mỗi phút → chạy các tick due (xem `app/Console
 | `care-reminder-tick` | mỗi phút | `app/Services/Care/CareReminder.php` | Digest 1 thông báo/sales có việc `pending` đến hạn (`scheduled_at <= now`) qua `Notifier::sendUnique` (không spam mỗi phút; nhắc lại sau khi user đọc). Link `/care`. |
 | `customer-cold-tick` | 07:00 hằng ngày | `app/Services/Care/ColdDetector.php` | Khách quá `CARE_COLD_DAYS` (env, mặc định 7) ngày không tương tác (`COALESCE(last_interaction_at, created)`) mà chưa cờ, không phải won/lost → `is_cold_flagged=1` + báo sales. Lô `BATCH=300`. |
 | `customer-release-tick` | 01:00 hằng ngày | `app/Services/Care/CustomerRelease.php` | Khách `locked_until < now` (lâu không ai `touch`), `assigned_user_id > 0`, không won/lost → trả về kho chung (`assigned_user_id=0`, `locked_until=null`) + báo sales cũ. Lô `BATCH=300`. Xem [customer.md](customer.md) (Bước 3). |
+| `lead-score-tick` | 02:00 hằng ngày | `app/Services/Customer/LeadScorer.php` | Chấm lại `lead_score` (0–100) TOÀN BỘ khách để phản ánh **suy giảm độ mới** tương tác theo thời gian. Đếm tương tác bằng 1 truy vấn gộp, duyệt khách theo lô `BATCH=500`, chỉ ghi khi điểm đổi. Xem [customer.md](customer.md). |
 
 - **Config**: `CARE_COLD_DAYS` (env, default 7). Không cần khai — có default trong code.
 - Tick nào cũng guard `schema()->hasTable(...)` → bảng chưa migrate thì thoát êm; lỗi được `schedule.php` bọc try/catch + `Log`.

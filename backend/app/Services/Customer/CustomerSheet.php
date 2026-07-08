@@ -5,6 +5,7 @@ namespace App\Services\Customer;
 use App\Models\Customer;
 use App\Models\LeadSource;
 use Illuminate\Support\Str;
+use App\Services\Customer\LeadScorer;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -197,6 +198,8 @@ class CustomerSheet
 
             $sourceName = self::cellStr($cells[10] ?? '');
             $leadId     = $sourceName !== '' ? ($sourceIds[mb_strtolower(trim($sourceName))] ?? 0) : 0;
+            $stage      = self::toCode(self::cellStr($cells[8] ?? ''), self::STAGES, 'new');
+            $temp       = self::toCode(self::cellStr($cells[9] ?? ''), self::TEMPERATURES, 'warm');
 
             $data = [
                 'full_name'      => $name,
@@ -207,12 +210,14 @@ class CustomerSheet
                 'birth_year'     => self::toYear($cells[5] ?? ''),
                 'address'        => Str::clear(self::cellStr($cells[6] ?? '')),
                 'occupation'     => Str::clear(self::cellStr($cells[7] ?? '')),
-                'pipeline_stage' => self::toCode(self::cellStr($cells[8] ?? ''), self::STAGES, 'new'),
-                'temperature'    => self::toCode(self::cellStr($cells[9] ?? ''), self::TEMPERATURES, 'warm'),
+                'pipeline_stage' => $stage,
+                'temperature'    => $temp,
                 'lead_source_id' => $leadId,
                 'note'           => Str::clear(self::cellStr($cells[11] ?? '')),
                 'assigned_user_id' => $assignedUserId,
                 'locked_until'   => Customer::lockExpiry(),
+                // Điểm khởi tạo (chưa có tương tác) — tick nền/thao tác sau sẽ cập nhật.
+                'lead_score'     => LeadScorer::computeScore($stage, $temp, 0, null),
             ];
 
             $id = Customer::create($data);

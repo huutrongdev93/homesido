@@ -7,6 +7,7 @@ use App\Models\CustomerDemand;
 use App\Models\CustomerInteraction;
 use App\Models\CustomerTransfer;
 use App\Services\Customer\CustomerSheet;
+use App\Services\Customer\LeadScorer;
 use App\Services\Notification\Notifier;
 use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -120,6 +121,8 @@ class CustomerApi extends ApiController
             response()->error('Thêm khách hàng thất bại.');
         }
 
+        LeadScorer::recompute((int) $id);
+
         response()->success('Thêm khách hàng thành công', ['id' => (int) $id]);
     }
 
@@ -166,6 +169,9 @@ class CustomerApi extends ApiController
         }
 
         Customer::where('id', $customer->id)->update($data);
+
+        // Giai đoạn/nhiệt độ có thể đổi → chấm lại điểm tiềm năng.
+        LeadScorer::recompute((int) $customer->id);
 
         response()->success('Cập nhật khách hàng thành công', ['id' => (int) $customer->id]);
     }
@@ -329,6 +335,9 @@ class CustomerApi extends ApiController
 
         // Cập nhật mốc tương tác + gia hạn khóa (đang chăm tích cực → không bị auto-release).
         Customer::touch((int) $customer->id);
+
+        // Tần suất/độ mới tương tác đổi → chấm lại điểm tiềm năng.
+        LeadScorer::recompute((int) $customer->id);
 
         response()->success('Đã ghi tương tác', ['id' => (int) $intId]);
     }

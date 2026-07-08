@@ -162,6 +162,26 @@ class UtilsApi extends Controller
                         ['value' => 'deposited',   'label' => 'Đặt cọc'],
                     ],
                 ],
+                'deal' => [
+                    // Giai đoạn giao dịch (deals.status).
+                    'statuses' => [
+                        ['value' => 'deposit',   'label' => 'Đặt cọc'],
+                        ['value' => 'contract',  'label' => 'Đã ký hợp đồng'],
+                        ['value' => 'completed', 'label' => 'Hoàn tất'],
+                        ['value' => 'canceled',  'label' => 'Đã hủy'],
+                    ],
+                    // Hình thức thanh toán (deal_payments.method; "" = không rõ).
+                    'payment_methods' => [
+                        ['value' => 'cash',     'label' => 'Tiền mặt'],
+                        ['value' => 'transfer', 'label' => 'Chuyển khoản'],
+                        ['value' => 'card',     'label' => 'Quẹt thẻ'],
+                    ],
+                    // Trạng thái chi hoa hồng (commissions.status).
+                    'commission_statuses' => [
+                        ['value' => 'pending', 'label' => 'Chờ chi'],
+                        ['value' => 'paid',    'label' => 'Đã chi'],
+                    ],
+                ],
             ],
         ];
 
@@ -214,6 +234,7 @@ class UtilsApi extends Controller
             'database/property.php',
             'database/matching.php',
             'database/appointment.php',
+            'database/deal.php',
         ];
 
         foreach ($migrations as $migrationFile)

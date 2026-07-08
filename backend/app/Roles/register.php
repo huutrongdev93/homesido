@@ -19,6 +19,7 @@
 use App\Roles\RoleCapabilitiesAppointment;
 use App\Roles\RoleCapabilitiesAuth;
 use App\Roles\RoleCapabilitiesCustomer;
+use App\Roles\RoleCapabilitiesDeal;
 use App\Roles\RoleCapabilitiesMatching;
 use App\Roles\RoleCapabilitiesProperty;
 
@@ -47,6 +48,11 @@ add_filter('role_capabilities_groups', function (array $groups) {
     $groups['appointment'] = [
         'label'        => 'Lịch hẹn dẫn khách',
         'capabilities' => RoleCapabilitiesAppointment::all(),
+    ];
+
+    $groups['deal'] = [
+        'label'        => 'Giao dịch',
+        'capabilities' => RoleCapabilitiesDeal::all(),
     ];
 
     return $groups;

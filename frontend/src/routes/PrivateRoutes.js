@@ -11,6 +11,7 @@ import Property from "~/features/Property/pages/Property";
 import CareToday from "~/features/Care/pages/CareToday";
 import Matching from "~/features/Matching/pages/Matching";
 import Appointment from "~/features/Appointment/pages/Appointment";
+import Deal from "~/features/Deal/pages/Deal";
 
 /**
  * `cap`: quyền yêu cầu để vào route (string hoặc mảng = có 1 trong số đó; root luôn qua).
@@ -28,6 +29,7 @@ export const privateRoutes = [
 	{ path: "/properties", component: Property, cap: 'property_view' },
 	{ path: "/matching", component: Matching, cap: 'matching_view' },
 	{ path: "/appointments", component: Appointment, cap: 'appointment_view' },
+	{ path: "/deals", component: Deal, cap: 'deal_view' },
 	// Hồ sơ cá nhân — 1 trang /account với tabs (info | password)
 	{ path: "/account", component: Account },
 	// Route cũ → redirect về /account (giữ link/bookmark không gãy).

@@ -137,6 +137,28 @@ Route::namespace('App\Controllers\Api')
 
 /**
 |--------------------------------------------------------------------------
+| Giao dịch (GĐ2) — cần JWT token; gate cap deal_* trong controller
+|--------------------------------------------------------------------------
+*/
+Route::namespace('App\Controllers\Api')
+    ->middleware('jwt')
+    ->prefix('api/deal')
+    ->group(function ()
+    {
+        Route::get('', 'DealApi@index')->name('api.deal.index');                          // ?keyword=&status=&customer_id=&property_id=
+        Route::post('', 'DealApi@add')->name('api.deal.add');
+        Route::get('/{id}', 'DealApi@detail')->name('api.deal.detail');
+        Route::put('/{id}', 'DealApi@update')->name('api.deal.update');
+        Route::put('/{id}/status', 'DealApi@changeStatus')->name('api.deal.status');
+        Route::put('/{id}/commission', 'DealApi@updateCommission')->name('api.deal.commission');
+        Route::delete('/{id}', 'DealApi@destroy')->name('api.deal.destroy');
+        // Đợt thanh toán (sub-resource)
+        Route::post('/{id}/payments', 'DealApi@addPayment')->name('api.deal.payments.add');
+        Route::delete('/{id}/payments/{paymentId}', 'DealApi@deletePayment')->name('api.deal.payments.delete');
+    });
+
+/**
+|--------------------------------------------------------------------------
 | Bất động sản (Kho hàng) — cần JWT token; gate cap trong controller
 |--------------------------------------------------------------------------
 */

@@ -271,6 +271,17 @@ Index: `(customer_id, property_id)` (dedup cặp), `(property_id)`.
 Index: `(scheduled_at, status)`, `(assigned_user_id, status)`, `(property_id)`.
 > Thêm ở migration `database/appointment.php` (đăng ký sau `matching.php`) — guard `hasTable`, idempotent. **KHÔNG có `trash`** (dùng vòng đời status như `care_schedules`; hủy = `status=canceled`). Chốt `done` → tạo 1 `customer_interactions` type `viewing` + `Customer::touch()` + rescore. Tick `appointment-reminder-tick` nhắc trước giờ. Xem [`features/appointment.md`](features/appointment.md).
 
+### `deals` — Giao dịch (GĐ2)
+`id` · `code`(50, index; auto `GD`+7) · `customer_id` (index) · `property_id` (index) · `assigned_user_id` (sales hưởng hoa hồng) · `transaction_type` enum(sale,rent) · `value` decimal(15,2) default 0 (VNĐ) · `commission_rate` decimal(5,2) default 0 (%) · `commission_amount` decimal(15,2) default 0 (VNĐ) · `status` enum(deposit,contract,completed,canceled) · `deposit_at`/`contract_at`/`completed_at`/`canceled_at` datetime · `note` text · `user_created` · `trash` (index) · `created` · `updated`.
+Index: `(code)`, `(customer_id)`, `(property_id)`, `(assigned_user_id, status)`, `(status)`.
+
+### `deal_payments` — Đợt thanh toán của giao dịch
+`id` · `deal_id` (index) · `amount` decimal(15,2) default 0 (VNĐ) · `paid_at` datetime · `method` string(20) default '' (cash/transfer/card enum `payment_methods`; ''=không rõ) · `note` text · `user_created` · `created` · `updated`. Xóa cứng.
+
+### `commissions` — Hoa hồng của sale trên giao dịch
+`id` · `deal_id` (index; 1 dòng/giao dịch) · `user_id` (index; sale hưởng) · `rate` decimal(5,2) · `amount` decimal(15,2) (VNĐ) · `status` enum(pending,paid) · `paid_at` datetime · `note` text · `created` · `updated`.
+> 3 bảng thêm ở migration `database/deal.php` (đăng ký sau `appointment.php`) — guard `hasTable`, idempotent. Tiền lưu **VNĐ** (form nhập **triệu**, ×/÷1e6); `commission_rate` là %. Chuyển `deals.status` **tự đổi `properties.status`** (deposit/contract→deposited; completed→sold|rented; canceled→available). `commissions` đồng bộ từ deal (upsert theo `deal_id`); đánh dấu chi cần cap `commission_manage`. Xem [`features/deal.md`](features/deal.md).
+
 ## 5. Thêm bảng/cột mới (checklist)
 
 1. Tạo `backend/database/<ten>.php` — trả `Migration` ẩn danh, `up()` guard `hasTable`/`hasColumn`,

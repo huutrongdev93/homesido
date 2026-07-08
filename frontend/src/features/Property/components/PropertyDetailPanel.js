@@ -97,8 +97,11 @@ function PropertyDetailPanel({property, canEdit, onEdit, onMedia}) {
 	const wardName = useMemo(() => wards.find((x) => x.value === p.ward_code)?.label || '', [wards, p.ward_code]);
 
 	const media = useMemo(() => detail?.media || [], [detail]);
-	// Ảnh đại diện = media ảnh đầu tiên (nếu có).
-	const cover = useMemo(() => media.find((m) => m.type === 'image')?.url || '', [media]);
+	// Ảnh đại diện: BE đã giải sẵn (cover đã chọn → else ảnh đầu tiên); fallback list record khi detail chưa về.
+	const cover = useMemo(
+		() => p.thumbnail || media.find((m) => m.type === 'image')?.url || '',
+		[p.thumbnail, media],
+	);
 
 	const STATUS_COLORS = {available: '#16a34a', deposited: '#d97706', sold: '#dc2626', rented: '#2563eb', inactive: '#64748b'};
 	const statusColor = STATUS_COLORS[p.status] || '#64748b';

@@ -137,6 +137,7 @@ Route::namespace('App\Controllers\Api')
         Route::post('/{id}/media', 'PropertyApi@mediaUpload')->name('api.property.media.upload');
         Route::put('/{id}/media/reorder', 'PropertyApi@mediaReorder')->name('api.property.media.reorder');
         Route::delete('/{id}/media/{mediaId}', 'PropertyApi@mediaDelete')->name('api.property.media.delete');
+        Route::put('/{id}/cover', 'PropertyApi@setCover')->name('api.property.cover');
         // Matching: gợi ý khách phù hợp BĐS này. Cap matching_view.
         Route::get('/{id}/match-customers', 'PropertyApi@matchCustomers')->name('api.property.matchCustomers');
     });

@@ -20,7 +20,7 @@ Bất động sản (Property)
 │  ├─ src/layout/Sidebar/NavBarData.js                      # menu "Kinh doanh" → "Bất động sản", gate useCan('property_view')
 │  └─ src/context/AppProvider.js                            # appData.property.{property_types,transaction_types,statuses,visibilities,legal_statuses,furnitures,directions,road_types} (enum tĩnh)
 └─ BE  routes/api.php  (prefix api/property, middleware jwt) + (prefix api/location, PUBLIC)
-       ├─ app/Controllers/Api/PropertyApi.php               # index/detail/add/update/destroy; scope kho-chung; findViewable vs findOwned; auto-gen code; collectInput/transform
+       ├─ app/Controllers/Api/PropertyApi.php               # index/detail/add/update/destroy; scope kho-chung; findViewable vs findOwned; auto-gen code; collectInput/transform(+thumbnail); setCover/effectiveCoverId (thumbnail lô: PropertyMediaService::thumbnails)
        ├─ app/Controllers/Api/ApiController.php             # BASE: paging/respondList + requireCap/canViewAll
        ├─ app/Controllers/Api/LocationApi.php               # provinces/wards qua SkillDo Cms Location2 (tỉnh→phường 2 cấp, int code)
        ├─ app/Controllers/Api/UtilsApi.php::index           # enum property.* cho FE
@@ -69,6 +69,9 @@ Bất động sản (Property)
   reset phường (`setValue('ward_code', undefined)`); phường query theo `province_code` (skip nếu chưa chọn tỉnh).
 - **Media đã có** (xem [media.md](media.md)): upload/list/xóa/sắp xếp + kế toán dung lượng theo user;
   `detail` trả `media:[]` với `url`/`size`. Xóa mềm GIỮ media; xóa hẳn (`DELETE ?force=1`) mới purge.
+- **Ảnh đại diện** (`cover_media_id`, xem [media.md](media.md)): list/detail trả sẵn field `thumbnail`
+  (URL) — BE giải: ảnh đã chọn else ảnh đầu tiên. Đặt qua `PUT api/property/{id}/cover` (nút ⭐ trong
+  modal media). List hiện cột ảnh nhỏ đầu bảng; đừng tự fetch media để lấy thumbnail (đã có sẵn).
 - Các gotcha chung (base Model ép `''`/`0`, data-scope thủ công, xóa mềm `->trash()`, enum từ api/utils,
   lỗi nghiệp vụ `->setStatusCode(422)`): xem [customer.md](customer.md) + [../database.md](../database.md) §2.
 - **Matching** (gợi ý khách phù hợp BĐS + gửi SP): panel chi tiết có card "Khách hàng phù hợp" — xem

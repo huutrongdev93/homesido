@@ -12,6 +12,7 @@ use App\Services\Customer\CustomerSheet;
 use App\Services\Customer\LeadScorer;
 use App\Services\Matching\MatchEngine;
 use App\Services\Notification\Notifier;
+use App\Services\Storage\PropertyMediaService;
 use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -474,10 +475,13 @@ class CustomerApi extends ApiController
             $sent[(int) $m->property_id] = true;
         }
 
+        // Ảnh đại diện cho cả lô BĐS gợi ý (1 truy vấn) — dùng chung logic với danh sách BĐS.
+        $thumbs = PropertyMediaService::thumbnails(array_column($best, 'property'));
+
         $items = [];
         foreach ($best as $pid => $b)
         {
-            $items[] = $this->transformMatchProperty($b, isset($sent[$pid]));
+            $items[] = $this->transformMatchProperty($b, isset($sent[$pid]), $thumbs[$pid] ?? null);
         }
 
         usort($items, fn ($a, $b) => $b['score'] <=> $a['score']);
@@ -512,6 +516,8 @@ class CustomerApi extends ApiController
             }
         }
 
+        $thumbs = PropertyMediaService::thumbnails(array_values($props));
+
         $items = [];
         foreach ($rows as $r)
         {
@@ -521,6 +527,7 @@ class CustomerApi extends ApiController
                 'property_id' => (int) $r->property_id,
                 'code'        => $p ? (string) $p->code : '',
                 'title'       => $p ? (string) $p->title : '(BĐS đã xóa)',
+                'thumbnail'   => $p ? ($thumbs[(int) $p->id] ?? null) : null,
                 'price'       => $p ? (float) $p->price : 0,
                 'score'       => (int) $r->score,
                 'status'      => (string) $r->status,
@@ -695,7 +702,7 @@ class CustomerApi extends ApiController
     }
 
     /** Map 1 BĐS gợi ý (kèm điểm/nhu cầu/lý do) → mảng cho FE. */
-    protected function transformMatchProperty(array $b, bool $alreadySent): array
+    protected function transformMatchProperty(array $b, bool $alreadySent, ?string $thumbnail = null): array
     {
         $p = $b['property'];
 
@@ -703,6 +710,7 @@ class CustomerApi extends ApiController
             'id'               => (int) $p->id,
             'code'             => (string) $p->code,
             'title'            => (string) $p->title,
+            'thumbnail'        => $thumbnail,
             'property_type'    => (string) $p->property_type,
             'transaction_type' => (string) $p->transaction_type,
             'price'            => (float) $p->price,

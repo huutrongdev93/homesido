@@ -98,7 +98,7 @@ class UtilsApi extends Controller
                         ['value' => 'rent', 'label' => 'Cho thuê'],
                     ],
                     'statuses' => [
-                        ['value' => 'available', 'label' => 'Còn hàng'],
+                        ['value' => 'available', 'label' => 'Đang bán'],
                         ['value' => 'deposited', 'label' => 'Đang cọc'],
                         ['value' => 'sold',      'label' => 'Đã bán'],
                         ['value' => 'rented',    'label' => 'Đã cho thuê'],

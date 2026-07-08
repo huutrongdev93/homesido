@@ -12,7 +12,7 @@ gửi SP** (như `customer_transfers`), không cache match.
 
 ```
 Matching (GĐ2)
-├─ FE  src/features/Matching/pages/Matching.js               # trang /matching: 2 tab (Tabs) — "Tìm BĐS cho khách" (DebounceSelect khách → bảng BĐS gợi ý) + "Tìm khách cho BĐS" (DebounceSelect BĐS → bảng khách gợi ý); nút Gửi mở SendMatchModal. DebounceSelect gọi thẳng GET api/customer|property?keyword= (không route riêng)
+├─ FE  src/features/Matching/pages/Matching.js               # trang /matching: 2 tab (Tabs) — "Tìm BĐS cho khách" (DebounceSelect khách → bảng BĐS gợi ý, cột ảnh đại diện) + "Tìm khách cho BĐS" (DebounceSelect BĐS → bảng khách gợi ý); nút Gửi mở SendMatchModal. DebounceSelect gọi thẳng GET api/customer|property?keyword= (không route riêng)
 │  ├─ src/features/Matching/components/SendMatchModal.js     # modal xác nhận gửi SP + ghi chú (ModalForm + RHF + TextAreaField); presentational — dùng chung ở trang + drawer + panel
 │  ├─ src/features/Matching/matchUtils.js                    # fmtPrice (tỷ/tr) + matchScoreColor (tag điểm) — dùng chung
 │  ├─ src/features/Matching/style/Matching.module.scss       # .picker (ô chọn) + .reasonChip (chip lý do)
@@ -25,7 +25,8 @@ Matching (GĐ2)
 │  └─ src/context/AppProvider.js                             # appData.matching.statuses (enum tĩnh: sent/interested/rejected)
 └─ BE  routes/api.php  (route lồng trong prefix api/customer + api/property, middleware jwt)
        ├─ app/Services/Matching/MatchEngine.php              # HÀM THUẦN: matchQueryForDemand (query kho theo 1 nhu cầu) + matchesProperty (1 BĐS thỏa 1 nhu cầu?) + score/reasons (0–100)
-       ├─ app/Controllers/Api/CustomerApi.php                # matchProperties / matches (lịch sử) / sendMatch / updateMatchStatus + helpers demandsToMatch/bestScoreFor/transformMatchProperty
+       ├─ app/Controllers/Api/CustomerApi.php                # matchProperties / matches (lịch sử) / sendMatch / updateMatchStatus + helpers demandsToMatch/bestScoreFor/transformMatchProperty (kèm `thumbnail` — ảnh đại diện BĐS)
+       ├─ app/Services/Storage/PropertyMediaService.php      # thumbnails($rows) — giải ảnh đại diện lô BĐS (dùng chung list BĐS + gợi ý matching); xem [media.md](media.md)
        ├─ app/Controllers/Api/PropertyApi.php                # matchCustomers (gợi ý khách cho BĐS)
        ├─ app/Controllers/Api/UtilsApi.php::index            # enum matching.statuses cho FE
        ├─ app/Roles/RoleCapabilitiesMatching.php             # cap: matching_view / matching_send
@@ -43,6 +44,9 @@ Matching (GĐ2)
   `PUT /{id}/matches/{matchId}` (đổi `status`/`note`).
 - **Route BĐS** (`jwt`, prefix `api/property`): `GET /{id}/match-customers` (gợi ý khách).
 - **Response**: các endpoint gợi ý trả **mảng phẳng** (không phân trang) — trần `MATCH_LIMIT = 50`.
+- **Ảnh đại diện BĐS**: payload gợi ý BĐS (match-properties) + lịch sử (matches) kèm field `thumbnail`
+  (URL, null nếu chưa có ảnh) — giải qua `PropertyMediaService::thumbnails()` (1 truy vấn/lô, cùng logic
+  danh sách BĐS: cover đã chọn else ảnh đầu). FE hiện ô ảnh ở bảng /matching + mục gợi ý trong drawer khách.
 
 ## Match engine (MatchEngine)
 

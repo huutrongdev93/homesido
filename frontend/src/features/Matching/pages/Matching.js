@@ -96,6 +96,14 @@ function Matching() {
 	};
 
 	const propColumns = [
+		{
+			title: '', key: 'thumbnail', width: 56,
+			render: (_, r) => (
+				<div className={style.thumbCell}>
+					{r.thumbnail ? <img src={r.thumbnail} alt="" /> : <FontAwesomeIcon icon="fa-light fa-image" />}
+				</div>
+			),
+		},
 		{title: 'Mã', dataIndex: 'code', key: 'code', width: 120},
 		{title: 'Tiêu đề', dataIndex: 'title', key: 'title'},
 		{

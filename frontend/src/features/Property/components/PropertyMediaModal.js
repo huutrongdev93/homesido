@@ -7,6 +7,7 @@ import {
 	useUploadPropertyMediaMutation,
 	useDeletePropertyMediaMutation,
 	useReorderPropertyMediaMutation,
+	useSetPropertyCoverMutation,
 	useGetStorageUsageQuery,
 } from "~/reduxs/api/propertyApiSlice";
 import style from "../style/Property.module.scss";
@@ -38,6 +39,7 @@ function PropertyMediaModal({open, property, canEdit, onClose}) {
 	const [uploadMedia, {isLoading: uploading}] = useUploadPropertyMediaMutation();
 	const [deleteMedia] = useDeletePropertyMediaMutation();
 	const [reorderMedia] = useReorderPropertyMediaMutation();
+	const [setCover] = useSetPropertyCoverMutation();
 
 	const pick = () => inputRef.current?.click();
 
@@ -83,6 +85,16 @@ function PropertyMediaModal({open, property, canEdit, onClose}) {
 		reorderMedia({id, order});
 	};
 
+	// Đặt/bỏ ảnh đại diện. Bấm lại ảnh đang là đại diện = bỏ chọn (về ảnh đầu tiên).
+	const chooseCover = async (item) => {
+		try {
+			await setCover({id, mediaId: item.is_cover ? 0 : item.id}).unwrap();
+			notification.success({message: 'Thành công', description: item.is_cover ? 'Đã bỏ ảnh đại diện' : 'Đã đặt làm ảnh đại diện'});
+		} catch (err) {
+			notification.error({message: 'Lỗi', description: rtkErrorMessage(err, 'Cập nhật ảnh đại diện thất bại')});
+		}
+	};
+
 	const quota = Number(usage.quota_bytes) || 0;
 	const used = Number(usage.used_bytes) || 0;
 	const percent = quota > 0 ? Math.min(100, Math.round((used / quota) * 100)) : 0;
@@ -121,7 +133,7 @@ function PropertyMediaModal({open, property, canEdit, onClose}) {
 			) : (
 				<div className={style.mediaGrid}>
 					{media.map((m, i) => (
-						<div key={m.id} className={style.mediaItem}>
+						<div key={m.id} className={`${style.mediaItem} ${m.is_cover ? style.mediaCover : ''}`}>
 							<div className={style.mediaThumb}>
 								{m.type === 'image'
 									? <img src={m.url} alt="" />
@@ -129,10 +141,23 @@ function PropertyMediaModal({open, property, canEdit, onClose}) {
 										? <video src={m.url} muted />
 										: <FontAwesomeIcon icon="fa-light fa-file" />}
 								{m.type === 'video' && <span className={style.playBadge}><FontAwesomeIcon icon="fa-solid fa-play" /></span>}
+								{m.is_cover && (
+									<span className={style.coverBadge}><FontAwesomeIcon icon="fa-solid fa-star" /> Đại diện</span>
+								)}
 							</div>
 							<div className={style.mediaMeta}>{formatBytes(m.size)}</div>
 							{canEdit && (
 								<div className={style.mediaActions}>
+									{m.type === 'image' && (
+										<button
+											type="button"
+											className={m.is_cover ? style.coverActive : ''}
+											onClick={() => chooseCover(m)}
+											title={m.is_cover ? 'Bỏ ảnh đại diện' : 'Đặt làm ảnh đại diện'}
+										>
+											<FontAwesomeIcon icon={m.is_cover ? 'fa-solid fa-star' : 'fa-light fa-star'} />
+										</button>
+									)}
 									<button type="button" onClick={() => move(i, -1)} disabled={i === 0} title="Lên trước">
 										<FontAwesomeIcon icon="fa-light fa-arrow-left" />
 									</button>

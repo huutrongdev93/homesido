@@ -57,6 +57,59 @@ class PropertyMediaService
     }
 
     /**
+     * Giải ảnh đại diện cho 1 lô BĐS (1 truy vấn media) → `[propertyId => url|null]`.
+     * Ưu tiên ảnh được chọn (`cover_media_id`) nếu còn hợp lệ; không có → ảnh đầu tiên theo `sort_order`.
+     * Chỉ xét media loại ẢNH. `$rows` là danh sách bản ghi BĐS (cần `->id` + `->cover_media_id`).
+     * Dùng chung: danh sách/chi tiết BĐS lẫn gợi ý Matching.
+     */
+    public static function thumbnails($rows): array
+    {
+        $ids = [];
+        foreach ($rows as $row)
+        {
+            $ids[] = (int) $row->id;
+        }
+        if (empty($ids))
+        {
+            return [];
+        }
+
+        $firstByProp = [];   // pid     => path (ảnh đầu tiên theo thứ tự)
+        $imgById     = [];   // mediaId => [pid, path] (tra cover đã chọn)
+        foreach (PropertyMedia::whereIn('property_id', $ids)->where('type', 'image')
+                     ->orderBy('sort_order')->orderBy('id')->get() as $m)
+        {
+            $pid = (int) $m->property_id;
+            if (!isset($firstByProp[$pid]))
+            {
+                $firstByProp[$pid] = (string) $m->path;
+            }
+            $imgById[(int) $m->id] = [$pid, (string) $m->path];
+        }
+
+        $out = [];
+        foreach ($rows as $row)
+        {
+            $pid   = (int) $row->id;
+            $cover = (int) ($row->cover_media_id ?? 0);
+
+            $path = null;
+            if ($cover > 0 && isset($imgById[$cover]) && $imgById[$cover][0] === $pid)
+            {
+                $path = $imgById[$cover][1];   // cover đã chọn còn hợp lệ
+            }
+            elseif (isset($firstByProp[$pid]))
+            {
+                $path = $firstByProp[$pid];    // fallback ảnh đầu tiên
+            }
+
+            $out[$pid] = ($path !== null) ? self::url($path) : null;
+        }
+
+        return $out;
+    }
+
+    /**
      * Lưu 1 file upload cho BĐS. KHÔNG throw — trả ['ok'=>bool,'error'=>?string,'id'=>int] để
      * controller gom lỗi từng file trong 1 lô upload.
      */

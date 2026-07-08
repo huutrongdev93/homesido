@@ -83,10 +83,12 @@ class PropertyApi extends ApiController
 
         $rows = $query->orderByDesc('id')->offset($offset)->limit($pageSize)->get();
 
+        $thumbs = PropertyMediaService::thumbnails($rows);
+
         $items = [];
         foreach ($rows as $row)
         {
-            $items[] = $this->transform($row);
+            $items[] = $this->transform($row, $thumbs[(int) $row->id] ?? null);
         }
 
         $this->respondList($items, $total, $page, $pageSize);
@@ -101,13 +103,21 @@ class PropertyApi extends ApiController
 
         $property = $this->findViewable((int) $id);
 
+        $mediaRows = PropertyMedia::where('property_id', $property->id)->orderBy('sort_order')->orderBy('id')->get();
+        $coverId   = $this->effectiveCoverId($mediaRows, (int) $property->cover_media_id);
+
         $media = [];
-        foreach (PropertyMedia::where('property_id', $property->id)->orderBy('sort_order')->orderBy('id')->get() as $m)
+        $thumb = null;
+        foreach ($mediaRows as $m)
         {
-            $media[] = $this->transformMedia($m);
+            $media[] = $this->transformMedia($m, $coverId);
+            if ((int) $m->id === $coverId)
+            {
+                $thumb = PropertyMediaService::url((string) $m->path);
+            }
         }
 
-        $data = $this->transform($property);
+        $data = $this->transform($property, $thumb);
         $data['media'] = $media;
 
         response()->success('success', $data);
@@ -220,13 +230,46 @@ class PropertyApi extends ApiController
 
         $property = $this->findViewable((int) $id);
 
+        $mediaRows = PropertyMedia::where('property_id', $property->id)->orderBy('sort_order')->orderBy('id')->get();
+        $coverId   = $this->effectiveCoverId($mediaRows, (int) $property->cover_media_id);
+
         $items = [];
-        foreach (PropertyMedia::where('property_id', $property->id)->orderBy('sort_order')->orderBy('id')->get() as $m)
+        foreach ($mediaRows as $m)
         {
-            $items[] = $this->transformMedia($m);
+            $items[] = $this->transformMedia($m, $coverId);
         }
 
         response()->success('success', $items);
+    }
+
+    /**
+     * PUT api/property/{id}/cover — đặt ảnh đại diện (body `media_id`).
+     * `media_id = 0` = bỏ chọn (về ảnh đầu tiên). Chỉ nhận media ẢNH thuộc chính BĐS; chỉ hàng của mình.
+     */
+    public function setCover(Request $request, $id): void
+    {
+        $this->requireCap('property_edit', 'Bạn không có quyền sửa bất động sản.');
+
+        $property = $this->findOwned((int) $id);
+
+        $mediaId = max(0, (int) $request->input('media_id'));
+
+        if ($mediaId > 0)
+        {
+            $row = PropertyMedia::where('id', $mediaId)->where('property_id', $property->id)->first();
+            if (!hasItems($row))
+            {
+                response()->setStatusCode(404)->setApiStatus(404)->error('Ảnh không tồn tại.');
+            }
+            if ((string) $row->type !== 'image')
+            {
+                response()->setStatusCode(422)->setApiStatus(422)->error('Chỉ được chọn ảnh làm ảnh đại diện.');
+            }
+        }
+
+        Property::where('id', $property->id)->update(['cover_media_id' => $mediaId]);
+
+        response()->success('Đã cập nhật ảnh đại diện', ['id' => (int) $property->id, 'cover_media_id' => $mediaId]);
     }
 
     /** POST api/property/{id}/media — upload nhiều file (field `files[]`). Gom lỗi từng file. */
@@ -288,6 +331,12 @@ class PropertyApi extends ApiController
         }
 
         PropertyMediaService::delete($row);
+
+        // Xóa đúng ảnh đại diện đã chọn → bỏ chọn (fallback về ảnh đầu tiên còn lại).
+        if ((int) $property->cover_media_id === (int) $mediaId)
+        {
+            Property::where('id', $property->id)->update(['cover_media_id' => 0]);
+        }
 
         response()->success('Đã xóa tệp', ['id' => (int) $mediaId]);
     }
@@ -426,8 +475,8 @@ class PropertyApi extends ApiController
         response()->success('success', array_slice($items, 0, self::MATCH_LIMIT));
     }
 
-    /** Map 1 media → mảng cho FE (kèm URL công khai). */
-    protected function transformMedia($m): array
+    /** Map 1 media → mảng cho FE (kèm URL công khai). `$coverId` = id ảnh đại diện hiệu lực → cờ `is_cover`. */
+    protected function transformMedia($m, int $coverId = 0): array
     {
         return [
             'id'            => (int) $m->id,
@@ -436,7 +485,34 @@ class PropertyApi extends ApiController
             'size'          => (int) $m->size,
             'original_name' => (string) ($m->original_name ?? ''),
             'sort_order'    => (int) $m->sort_order,
+            'is_cover'      => ((int) $m->id === $coverId && $coverId > 0),
         ];
+    }
+
+    /**
+     * Ảnh đại diện hiệu lực từ danh sách media đã nạp: cover đã chọn (nếu là ảnh hợp lệ) else ảnh đầu tiên;
+     * 0 nếu BĐS chưa có ảnh nào. Dùng cho detail/mediaIndex để đánh cờ `is_cover`.
+     */
+    protected function effectiveCoverId($mediaRows, int $coverMediaId): int
+    {
+        $firstImage = 0;
+        foreach ($mediaRows as $m)
+        {
+            if ((string) $m->type !== 'image')
+            {
+                continue;
+            }
+            if ($firstImage === 0)
+            {
+                $firstImage = (int) $m->id;
+            }
+            if ((int) $m->id === $coverMediaId)
+            {
+                return $coverMediaId;
+            }
+        }
+
+        return $firstImage;
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────────────────
@@ -517,13 +593,18 @@ class PropertyApi extends ApiController
         ];
     }
 
-    /** Map 1 bản ghi BĐS → mảng cho FE. */
-    protected function transform($row): array
+    /**
+     * Map 1 bản ghi BĐS → mảng cho FE.
+     * `$thumbnail` = URL ảnh đại diện đã giải sẵn (index/detail truyền vào); null = không có ảnh.
+     */
+    protected function transform($row, ?string $thumbnail = null): array
     {
         return [
             'id'               => (int) $row->id,
             'code'             => (string) $row->code,
             'title'            => (string) $row->title,
+            'cover_media_id'   => (int) $row->cover_media_id,
+            'thumbnail'        => $thumbnail,
             'project_id'       => (int) $row->project_id,
             'owner_id'         => (int) $row->owner_id,
             'property_type'    => (string) $row->property_type,

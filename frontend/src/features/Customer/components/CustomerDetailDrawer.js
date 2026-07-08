@@ -288,6 +288,9 @@ function CustomerDetailDrawer({open, customer, stageMap = {}, tempMap = {}, onCl
 								: matchProps.slice(0, 8).map((p) => (
 									<div key={p.id} className={style.demandItem}>
 										<div className={style.demandMain}>
+											<span className={style.matchThumb}>
+												{p.thumbnail ? <img src={p.thumbnail} alt="" /> : <FontAwesomeIcon icon="fa-light fa-image" />}
+											</span>
 											<Tag color={matchScoreColor(p.score || 0)}>{p.score || 0}</Tag>
 											<span className={style.demandType}>{p.code} — {p.title}</span>
 											{p.already_sent && <Tag color="success">Đã gửi</Tag>}

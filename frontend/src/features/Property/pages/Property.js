@@ -132,6 +132,16 @@ function Property() {
 	};
 
 	const columns = [
+		{
+			title: '', key: 'thumbnail', width: 64,
+			render: (_, record) => (
+				<div className={style.thumbCell}>
+					{record.thumbnail
+						? <img src={record.thumbnail} alt="" />
+						: <FontAwesomeIcon icon="fa-light fa-image" />}
+				</div>
+			),
+		},
 		{title: 'Mã', dataIndex: 'code', key: 'code', width: 120},
 		{title: 'Tiêu đề', dataIndex: 'title', key: 'title'},
 		{

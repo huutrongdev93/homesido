@@ -9,20 +9,35 @@ hẳn dữ liệu chứa media → **trừ dung lượng** tương ứng.
 - **Quota theo TỪNG NHÂN VIÊN** (không phải toàn sàn): cộng/trừ theo `property_media.user_id`.
 - **Xóa MỀM giữ media** (BĐS vào thùng rác vẫn giữ ảnh + vẫn tính dung lượng); chỉ **xóa HẲN**
   (`DELETE api/property/{id}?force=1`) mới purge file + hoàn dung lượng.
+- **Ảnh đại diện** (`properties.cover_media_id`): nhân viên bấm ⭐ chọn 1 **ảnh** làm đại diện; không
+  chọn (=0) thì tự lấy **ảnh đầu tiên** theo `sort_order`. BE giải sẵn URL `thumbnail` cho list/detail
+  (không phải fetch media riêng); media trả cờ `is_cover` (ảnh đại diện hiệu lực, gồm cả fallback).
+
+## Ảnh đại diện (cover)
+- **Route** (`jwt`, cap `property_edit`, findOwned): `PUT api/property/{id}/cover` body `{media_id}` —
+  `media_id>0` chỉ nhận **ảnh** thuộc chính BĐS (404 nếu không tồn tại, 422 nếu không phải ảnh);
+  `media_id=0` = bỏ chọn (về ảnh đầu tiên). Xóa đúng ảnh đang là cover → BE tự reset `cover_media_id=0`.
+- **Giải thumbnail (list)**: `PropertyMediaService::thumbnails($rows)` — 1 truy vấn `property_media`
+  (`type='image'`) cho cả trang → `[pid => url]`; ưu tiên `cover_media_id` (nếu còn hợp lệ) else ảnh đầu.
+  Dùng chung: danh sách BĐS + gợi ý Matching (match-properties / matches).
+- **is_cover (detail/mediaIndex)**: `PropertyApi::effectiveCoverId($mediaRows, cover_media_id)` chọn id
+  hiệu lực → `transformMedia($m, $coverId)` gắn `is_cover`. FE: badge "Đại diện" + nút ⭐ toggle
+  (`useSetPropertyCoverMutation`, invalidate `PropertyMedia` + `Property`).
 
 ## Bản đồ file (front-to-back)
 
 ```
 Media BĐS + Dung lượng
-├─ FE  src/features/Property/pages/Property.js                 # nút "Ảnh/video" mỗi hàng → mở PropertyMediaModal
-│  ├─ src/features/Property/components/PropertyMediaModal.js   # gallery: upload nhiều (FormData) + xóa + sắp xếp (up/down) + thanh dung lượng đã dùng
-│  ├─ src/features/Property/style/Property.module.scss         # style storageBar/mediaGrid/mediaThumb...
-│  ├─ src/reduxs/api/propertyApiSlice.js                       # getPropertyMedia/upload(FormData multipart)/delete/reorder + getStorageUsage; tags PropertyMedia/Storage
+├─ FE  src/features/Property/pages/Property.js                 # nút "Ảnh/video" mỗi hàng → mở PropertyMediaModal; cột ảnh đại diện (record.thumbnail)
+│  ├─ src/features/Property/components/PropertyMediaModal.js   # gallery: upload nhiều (FormData) + xóa + sắp xếp (up/down) + ⭐ đặt/bỏ ảnh đại diện (badge is_cover) + thanh dung lượng
+│  ├─ src/features/Property/components/PropertyDetailPanel.js  # header dùng cover = p.thumbnail (BE giải sẵn) fallback ảnh đầu
+│  ├─ src/features/Property/style/Property.module.scss         # style storageBar/mediaGrid/mediaThumb + thumbCell (list) + coverBadge/mediaCover/coverActive
+│  ├─ src/reduxs/api/propertyApiSlice.js                       # getPropertyMedia/upload(FormData multipart)/delete/reorder + setPropertyCover + getStorageUsage; tags PropertyMedia/Storage
 │  └─ src/reduxs/api/apiSlice.js                               # tag 'PropertyMedia','Storage'; axiosBaseQuery hỗ trợ headers (multipart)
-└─ BE  routes/api.php  (prefix api/property, middleware jwt)
-       ├─ app/Controllers/Api/PropertyApi.php                 # mediaIndex/mediaUpload/mediaDelete/mediaReorder + transformMedia; destroy(?force=1) purge
+└─ BE  routes/api.php  (prefix api/property, middleware jwt)   # +PUT /{id}/cover
+       ├─ app/Controllers/Api/PropertyApi.php                 # mediaIndex/mediaUpload/mediaDelete/mediaReorder + setCover + transformMedia(is_cover)/effectiveCoverId; destroy(?force=1) purge
        ├─ app/Controllers/Api/StorageApi.php                  # GET api/storage — dung lượng đã dùng + hạn mức của user hiện tại
-       ├─ app/Services/Storage/PropertyMediaService.php       # store (validate loại/size/quota → move → row → cộng dung lượng) / delete / purgeProperty / url()
+       ├─ app/Services/Storage/PropertyMediaService.php       # store (validate loại/size/quota → move → row → cộng dung lượng) / delete / purgeProperty / url() / thumbnails($rows) (giải ảnh đại diện lô)
        ├─ app/Services/Storage/StorageMeter.php               # used/add/subtract/quota/wouldExceed (user meta storage_used_bytes)
        ├─ app/Models/PropertyMedia.php
        ├─ database/media.php                                  # +cột size/user_id/mime_type/original_name (đăng ký sau crm.php)

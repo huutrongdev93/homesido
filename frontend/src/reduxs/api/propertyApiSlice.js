@@ -53,6 +53,11 @@ export const propertyApiSlice = apiSlice.injectEndpoints({
 			query: ({id, order}) => ({url: `property/${id}/media/reorder`, method: 'put', data: {order}}),
 			invalidatesTags: (result, error, {id}) => [{type: 'PropertyMedia', id}],
 		}),
+		// Đặt ảnh đại diện (mediaId=0 = bỏ chọn → về ảnh đầu tiên). Cập nhật cả list (thumbnail) + modal (is_cover).
+		setPropertyCover: builder.mutation({
+			query: ({id, mediaId}) => ({url: `property/${id}/cover`, method: 'put', data: {media_id: mediaId}}),
+			invalidatesTags: (result, error, {id}) => [{type: 'PropertyMedia', id}, 'Property'],
+		}),
 
 		// Dung lượng đã dùng của user hiện tại (cho gói theo dung lượng).
 		getStorageUsage: builder.query({
@@ -73,5 +78,6 @@ export const {
 	useUploadPropertyMediaMutation,
 	useDeletePropertyMediaMutation,
 	useReorderPropertyMediaMutation,
+	useSetPropertyCoverMutation,
 	useGetStorageUsageQuery,
 } = propertyApiSlice;

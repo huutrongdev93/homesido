@@ -16,6 +16,7 @@
 
 use App\Services\Care\CareReminder;
 use App\Services\Care\ColdDetector;
+use App\Services\Care\CustomerRelease;
 use App\Services\Notification\PushQueue;
 use Illuminate\Console\Scheduling\Schedule;
 use SkillDo\Log\Log;
@@ -89,3 +90,26 @@ app(Schedule::class)->call(function () {
         ]);
     }
 })->dailyAt('07:00')->name('customer-cold-tick');
+
+/**
+ * Tick tự trả khách quá hạn khóa về kho chung (hằng ngày lúc 01:00). Gỡ khóa + đưa
+ * assigned_user_id về 0 + báo sales cũ. Xem App\Services\Care\CustomerRelease.
+ */
+app(Schedule::class)->call(function () {
+
+    try
+    {
+        $summary = (new CustomerRelease())->tick();
+
+        if (array_sum($summary) > 0)
+        {
+            Log::info('Customer release tick', $summary);
+        }
+    }
+    catch (\Throwable $e)
+    {
+        Log::error('Customer release tick error: ' . $e->getMessage(), [
+            'trace' => $e->getTraceAsString(),
+        ]);
+    }
+})->dailyAt('01:00')->name('customer-release-tick');

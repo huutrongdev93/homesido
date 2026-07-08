@@ -11,7 +11,10 @@ import {
 	useUpdatePropertyMutation,
 	useDeletePropertyMutation,
 } from "~/reduxs/api/propertyApiSlice";
+import {useGetProjectsQuery, useGetPropertyOwnersQuery} from "~/reduxs/api/catalogApiSlice";
 import PropertyFormModal from "../components/PropertyFormModal";
+import PropertyMediaModal from "../components/PropertyMediaModal";
+import PropertyDetailPanel from "../components/PropertyDetailPanel";
 import style from "../style/Property.module.scss";
 
 const STATUS_COLORS = {
@@ -40,6 +43,8 @@ function Property() {
 	const visibilities = useMemo(() => enums.visibilities || [], [enums]);
 	const legals = useMemo(() => enums.legal_statuses || [], [enums]);
 	const furnitures = useMemo(() => enums.furnitures || [], [enums]);
+	const directions = useMemo(() => enums.directions || [], [enums]);
+	const roadTypes = useMemo(() => enums.road_types || [], [enums]);
 
 	const typeMap = useMemo(() => toMap(types), [types]);
 	const statusMap = useMemo(() => toMap(statuses), [statuses]);
@@ -67,12 +72,20 @@ function Property() {
 
 	const {data = {items: [], total: 0}, isFetching, refetch} = useGetPropertiesQuery(params);
 
+	// Danh mục cho select trong form.
+	const {data: projectRows = []} = useGetProjectsQuery();
+	const {data: ownerRows = []} = useGetPropertyOwnersQuery();
+	const projects = useMemo(() => projectRows.map((p) => ({value: p.id, label: p.name})), [projectRows]);
+	const owners = useMemo(() => ownerRows.map((o) => ({value: o.id, label: o.phone ? `${o.full_name} — ${o.phone}` : o.full_name})), [ownerRows]);
+
 	const [addProperty, {isLoading: adding}] = useAddPropertyMutation();
 	const [updateProperty, {isLoading: updating}] = useUpdatePropertyMutation();
 	const [deleteProperty] = useDeletePropertyMutation();
 
 	const [openModal, setOpenModal] = useState({addEdit: false});
 	const [itemEdit, setItemEdit] = useState(null);
+	const [mediaItem, setMediaItem] = useState(null);   // BĐS đang mở modal media
+	const [expandedKey, setExpandedKey] = useState(null);   // id hàng đang mở chi tiết (1 hàng)
 
 	const events = {
 		openAdd: () => {
@@ -140,7 +153,10 @@ function Property() {
 		{
 			title: '', key: 'actions', width: 90, align: 'right',
 			render: (_, record) => (
-				<div className={style.rowActions}>
+				<div className={style.rowActions} onClick={(e) => e.stopPropagation()}>
+					<button type="button" className={style.iconBtn} onClick={() => setMediaItem(record)} title="Ảnh / video">
+						<FontAwesomeIcon icon="fa-light fa-images" />
+					</button>
 					{can.edit && (
 						<button type="button" className={style.iconBtn} onClick={() => events.openEdit(record)} title="Sửa">
 							<FontAwesomeIcon icon="fa-light fa-pen-to-square" />
@@ -205,6 +221,7 @@ function Property() {
 				</button>
 			</div>
 
+			<div className="app-card">
 			<Table
 				rowKey="id"
 				columns={columns}
@@ -212,6 +229,26 @@ function Property() {
 				loading={isFetching}
 				size="middle"
 				scroll={{x: 800}}
+				rowClassName={(record) => (record.id === expandedKey ? style.rowExpanded : '')}
+				onRow={() => ({style: {cursor: 'pointer'}})}
+				expandable={{
+					expandedRowKeys: expandedKey ? [expandedKey] : [],
+					expandRowByClick: true,
+					showExpandColumn: false,
+					onExpandedRowsChange: (keys) => {
+						// Chỉ mở 1 hàng: lấy key khác key hiện tại (hàng vừa click), không có → đóng.
+						const next = (keys || []).filter((k) => k !== expandedKey);
+						setExpandedKey(next.length ? next[next.length - 1] : null);
+					},
+					expandedRowRender: (record) => (
+						<PropertyDetailPanel
+							property={record}
+							canEdit={can.edit}
+							onEdit={events.openEdit}
+							onMedia={(r) => setMediaItem(r)}
+						/>
+					),
+				}}
 				pagination={{
 					current: page,
 					pageSize,
@@ -224,14 +261,22 @@ function Property() {
 					},
 				}}
 			/>
+			</div>
 
 			<PropertyFormModal
 				open={openModal.addEdit}
 				item={itemEdit}
 				loading={adding || updating}
-				options={{types, transactions, statuses, visibilities, legals, furnitures}}
+				options={{types, transactions, statuses, visibilities, legals, furnitures, directions, roadTypes, projects, owners}}
 				onCancel={events.close}
 				onSubmit={events.save}
+			/>
+
+			<PropertyMediaModal
+				open={!!mediaItem}
+				property={mediaItem}
+				canEdit={can.edit}
+				onClose={() => setMediaItem(null)}
 			/>
 		</div>
 	);

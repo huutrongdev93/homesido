@@ -102,6 +102,133 @@
     text-decoration: none;
 }
 
+// ---- Badge phạm vi (toàn sàn) ----
+.scopeBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #2563eb;
+    background: #e7f0ff;
+    padding: 5px 12px;
+    border-radius: 999px;
+}
+
+.loading {
+    display: flex;
+    justify-content: center;
+    padding: 40px 0;
+}
+
+// ---- Lưới KPI ----
+.kpiGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.kpiValue {
+    font-size: 26px;
+    font-weight: 800;
+    color: #111827;
+    line-height: 1.1;
+}
+
+// ---- Panels (phễu khách + kho BĐS) ----
+.panels {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.panel {
+    background: #fff;
+    border: 1px solid #eef0f5;
+    border-radius: 14px;
+    padding: 18px 20px;
+    box-shadow: 0 1px 3px rgba(16, 24, 40, 0.04);
+}
+
+.panelHead {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+
+    h3 {
+        font-size: 15px;
+        font-weight: 700;
+        color: #1f2937;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+}
+
+.panelLink {
+    font-size: 12px;
+    color: #2563eb;
+    text-decoration: none;
+
+    &:hover { text-decoration: underline; }
+}
+
+.panelFoot {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px dashed #eef0f5;
+    font-size: 13px;
+    color: #8c93a3;
+}
+
+// ---- Thanh (phễu / trạng thái) ----
+.bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.barLabel {
+    flex: 0 0 92px;
+    font-size: 13px;
+    color: #4b5563;
+}
+
+.barTrack {
+    flex: 1;
+    height: 10px;
+    background: #f1f3f9;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.barFill {
+    height: 100%;
+    border-radius: 6px;
+    min-width: 2px;
+    transition: width .4s ease;
+
+    &.primary { background: #2563eb; }
+    &.success { background: #16a34a; }
+    &.warning { background: #f59e0b; }
+    &.danger  { background: #ef4444; }
+    &.purple  { background: #7c3aed; }
+    &.orange  { background: #f97316; }
+}
+
+.barValue {
+    flex: 0 0 34px;
+    text-align: right;
+    font-size: 13px;
+    font-weight: 700;
+    color: #111827;
+}
+
 // ============================================================
 //  Responsive
 // ============================================================

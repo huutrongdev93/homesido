@@ -56,6 +56,11 @@ class UtilsApi extends Controller
                         ['value' => 'sell',    'label' => 'Bán'],
                         ['value' => 'consign', 'label' => 'Ký gửi'],
                     ],
+                    // Mục đích của nhu cầu (dùng cho customer_demands).
+                    'purposes' => [
+                        ['value' => 'live',   'label' => 'Để ở'],
+                        ['value' => 'invest', 'label' => 'Đầu tư'],
+                    ],
                 ],
                 'care' => [
                     // Loại lịch chăm sóc (kênh liên hệ).
@@ -115,6 +120,23 @@ class UtilsApi extends Controller
                         ['value' => 'basic', 'label' => 'Cơ bản'],
                         ['value' => 'full',  'label' => 'Đầy đủ'],
                     ],
+                    'directions' => [
+                        ['value' => 'east',      'label' => 'Đông'],
+                        ['value' => 'west',      'label' => 'Tây'],
+                        ['value' => 'south',     'label' => 'Nam'],
+                        ['value' => 'north',     'label' => 'Bắc'],
+                        ['value' => 'southeast', 'label' => 'Đông Nam'],
+                        ['value' => 'southwest', 'label' => 'Tây Nam'],
+                        ['value' => 'northeast', 'label' => 'Đông Bắc'],
+                        ['value' => 'northwest', 'label' => 'Tây Bắc'],
+                    ],
+                    // Vị trí / đường vào — mặt tiền hay hẻm (loại xe vào được).
+                    'road_types' => [
+                        ['value' => 'frontage',   'label' => 'Mặt tiền đường'],
+                        ['value' => 'car_alley',  'label' => 'Hẻm xe hơi'],
+                        ['value' => 'bike_alley', 'label' => 'Hẻm xe máy'],
+                        ['value' => 'walk_alley', 'label' => 'Hẻm bộ'],
+                    ],
                 ],
             ],
         ];
@@ -142,6 +164,8 @@ class UtilsApi extends Controller
         // production để UTILS_API_OPEN=false thì endpoint này bị tắt (xem ensureOpen).
         $this->ensureOpen();
 
+        $this->index($request);
+
         response()->success('OK');
     }
 
@@ -162,6 +186,8 @@ class UtilsApi extends Controller
         $migrations = [
             'database/database.php',
             'database/crm.php',
+            'database/media.php',
+            'database/property.php',
         ];
 
         foreach ($migrations as $migrationFile)

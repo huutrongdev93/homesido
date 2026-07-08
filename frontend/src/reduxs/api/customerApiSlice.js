@@ -31,6 +31,35 @@ export const customerApiSlice = apiSlice.injectEndpoints({
 			query: (id) => ({url: `customer/${id}`, method: 'delete'}),
 			invalidatesTags: ['Customer'],
 		}),
+		// Danh sách nhân viên có thể nhận bàn giao (cho select trong modal bàn giao).
+		getAssignableUsers: builder.query({
+			query: () => ({url: 'customer/users', method: 'get'}),
+			transformResponse: (body) => body?.data || [],
+		}),
+		// Bàn giao khách cho nhân viên khác — invalidate 'Customer' để list/drawer refetch.
+		transferCustomer: builder.mutation({
+			query: ({id, ...data}) => ({url: `customer/${id}/transfer`, method: 'post', data}),
+			invalidatesTags: ['Customer'],
+		}),
+
+		// Nhu cầu / tiêu chí của khách (cho Matching GĐ2) — CRUD trong drawer chi tiết.
+		getCustomerDemands: builder.query({
+			query: (customerId) => ({url: `customer/${customerId}/demands`, method: 'get'}),
+			transformResponse: (body) => body?.data || [],
+			providesTags: ['Demand'],
+		}),
+		addDemand: builder.mutation({
+			query: ({customerId, ...data}) => ({url: `customer/${customerId}/demands`, method: 'post', data}),
+			invalidatesTags: ['Demand'],
+		}),
+		updateDemand: builder.mutation({
+			query: ({customerId, id, ...data}) => ({url: `customer/${customerId}/demands/${id}`, method: 'put', data}),
+			invalidatesTags: ['Demand'],
+		}),
+		deleteDemand: builder.mutation({
+			query: ({customerId, id}) => ({url: `customer/${customerId}/demands/${id}`, method: 'delete'}),
+			invalidatesTags: ['Demand'],
+		}),
 	}),
 });
 
@@ -40,4 +69,10 @@ export const {
 	useAddCustomerMutation,
 	useUpdateCustomerMutation,
 	useDeleteCustomerMutation,
+	useGetAssignableUsersQuery,
+	useTransferCustomerMutation,
+	useGetCustomerDemandsQuery,
+	useAddDemandMutation,
+	useUpdateDemandMutation,
+	useDeleteDemandMutation,
 } = customerApiSlice;

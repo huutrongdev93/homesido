@@ -13,9 +13,20 @@ import {
 	useCancelCareMutation,
 	useAddInteractionMutation,
 } from "~/reduxs/api/careApiSlice";
+import {
+	useTransferCustomerMutation,
+	useGetCustomerDemandsQuery,
+	useAddDemandMutation,
+	useUpdateDemandMutation,
+	useDeleteDemandMutation,
+} from "~/reduxs/api/customerApiSlice";
+import {useGetCareTemplatesQuery} from "~/reduxs/api/catalogApiSlice";
+import {useGetProvincesQuery} from "~/reduxs/api/locationApiSlice";
 import CareFormModal from "~/features/Care/components/CareFormModal";
 import CareCompleteModal from "~/features/Care/components/CareCompleteModal";
 import InteractionFormModal from "./InteractionFormModal";
+import CustomerTransferModal from "./CustomerTransferModal";
+import CustomerDemandModal from "./CustomerDemandModal";
 import style from "../style/CustomerDetail.module.scss";
 
 const CARE_STATUS = {
@@ -27,6 +38,24 @@ const CARE_STATUS = {
 
 const toMap = (arr = []) => arr.reduce((m, o) => ({...m, [o.value]: o.label}), {});
 const fmt = (v) => (v ? dayjs(v).format('DD/MM/YYYY HH:mm') : '');
+
+/** Số tiền VNĐ → chuỗi gọn (tỷ / triệu). Trả '' nếu 0/rỗng. */
+const money = (vnd) => {
+	const n = Number(vnd) || 0;
+	if (n <= 0) return '';
+	if (n >= 1e9) return `${(n / 1e9).toLocaleString('vi-VN', {maximumFractionDigits: 2})} tỷ`;
+	return `${Math.round(n / 1e6).toLocaleString('vi-VN')} triệu`;
+};
+
+/** Khoảng [min, max] → "từ X đến Y" / "từ X" / "đến Y" / '' (fmt = hàm format 1 đầu). */
+const range = (min, max, fmt1, unit = '') => {
+	const a = fmt1 ? fmt1(min) : (Number(min) > 0 ? `${min}${unit}` : '');
+	const b = fmt1 ? fmt1(max) : (Number(max) > 0 ? `${max}${unit}` : '');
+	if (a && b) return `${a} – ${b}`;
+	if (a) return `từ ${a}`;
+	if (b) return `đến ${b}`;
+	return '';
+};
 
 /**
  * Drawer chi tiết khách: thông tin + Chăm sóc (lịch) + Timeline tương tác.
@@ -42,22 +71,42 @@ function CustomerDetailDrawer({open, customer, stageMap = {}, tempMap = {}, onCl
 	const careTypeMap = useMemo(() => toMap(careTypes), [careTypes]);
 	const intTypeMap = useMemo(() => toMap(interactionTypes), [interactionTypes]);
 
+	const demandTypes = useMemo(() => appData?.customer?.demand_types || [], [appData]);
+	const purposes = useMemo(() => appData?.customer?.purposes || [], [appData]);
+	const propertyTypes = useMemo(() => appData?.property?.property_types || [], [appData]);
+	const directions = useMemo(() => appData?.property?.directions || [], [appData]);
+	const demandTypeMap = useMemo(() => toMap(demandTypes), [demandTypes]);
+	const purposeMap = useMemo(() => toMap(purposes), [purposes]);
+	const propTypeMap = useMemo(() => toMap(propertyTypes), [propertyTypes]);
+	const directionMap = useMemo(() => toMap(directions), [directions]);
+
 	const canEdit = useCan('customer_edit');
+	const canTransfer = useCan('customer_transfer');
 
 	const id = customer?.id;
 	const skip = !open || !id;
 
 	const {data: cares = []} = useGetCustomerCaresQuery(id, {skip});
 	const {data: interactions = []} = useGetCustomerInteractionsQuery(id, {skip});
+	const {data: demands = []} = useGetCustomerDemandsQuery(id, {skip});
+	const {data: careTemplates = []} = useGetCareTemplatesQuery(undefined, {skip: !open});
+	const {data: provinces = []} = useGetProvincesQuery();
+	const provinceMap = useMemo(() => toMap(provinces), [provinces]);
 
 	const [addCare, {isLoading: addingCare}] = useAddCareMutation();
 	const [completeCare, {isLoading: completing}] = useCompleteCareMutation();
 	const [cancelCare] = useCancelCareMutation();
 	const [addInteraction, {isLoading: addingInt}] = useAddInteractionMutation();
+	const [transferCustomer, {isLoading: transferring}] = useTransferCustomerMutation();
+	const [addDemand, {isLoading: addingDemand}] = useAddDemandMutation();
+	const [updateDemand, {isLoading: updatingDemand}] = useUpdateDemandMutation();
+	const [deleteDemand] = useDeleteDemandMutation();
 
 	const [openCare, setOpenCare] = useState(false);
 	const [openComplete, setOpenComplete] = useState(null);   // care đang hoàn thành
 	const [openInt, setOpenInt] = useState(false);
+	const [openTransfer, setOpenTransfer] = useState(false);
+	const [openDemand, setOpenDemand] = useState(null);   // false=đóng | {}=thêm | record=sửa
 
 	const events = {
 		saveCare: async (data) => {
@@ -102,6 +151,41 @@ function CustomerDetailDrawer({open, customer, stageMap = {}, tempMap = {}, onCl
 				notification.error({message: 'Lỗi', description: rtkErrorMessage(e, 'Ghi tương tác thất bại')});
 			}
 		},
+		transfer: async (data) => {
+			try {
+				await transferCustomer({id, ...data}).unwrap();
+				setOpenTransfer(false);
+				notification.success({message: 'Thành công', description: 'Đã bàn giao khách hàng'});
+				onClose();   // khách rời phạm vi của mình → đóng drawer.
+			} catch (e) {
+				notification.error({message: 'Lỗi', description: rtkErrorMessage(e, 'Bàn giao thất bại')});
+			}
+		},
+		saveDemand: async (data, item) => {
+			try {
+				if (item?.id) await updateDemand({customerId: id, id: item.id, ...data}).unwrap();
+				else await addDemand({customerId: id, ...data}).unwrap();
+				setOpenDemand(null);
+				notification.success({message: 'Thành công', description: item?.id ? 'Đã cập nhật nhu cầu' : 'Đã thêm nhu cầu'});
+			} catch (e) {
+				notification.error({message: 'Lỗi', description: rtkErrorMessage(e, 'Lưu nhu cầu thất bại')});
+			}
+		},
+		removeDemand: (demand) => {
+			modal.confirm({
+				title: 'Xóa nhu cầu', content: 'Bạn có chắc muốn xóa nhu cầu này?',
+				okText: 'Xóa', okButtonProps: {danger: true}, cancelText: 'Đóng',
+				onOk: async () => {
+					try {
+						await deleteDemand({customerId: id, id: demand.id}).unwrap();
+						notification.success({message: 'Thành công', description: 'Đã xóa nhu cầu'});
+					} catch (e) {
+						notification.error({message: 'Lỗi', description: rtkErrorMessage(e, 'Xóa thất bại')});
+						return Promise.reject();
+					}
+				},
+			});
+		},
 	};
 
 	return (
@@ -120,7 +204,54 @@ function CustomerDetailDrawer({open, customer, stageMap = {}, tempMap = {}, onCl
 							{customer.pipeline_stage && <Tag>{stageMap[customer.pipeline_stage] || customer.pipeline_stage}</Tag>}
 							{customer.temperature && <Tag>{tempMap[customer.temperature] || customer.temperature}</Tag>}
 						</div>
+						{canTransfer && (
+							<Button small outline leftIcon={<FontAwesomeIcon icon="fa-light fa-arrow-right-arrow-left" />} onClick={() => setOpenTransfer(true)}>
+								Bàn giao
+							</Button>
+						)}
 					</div>
+
+					{/* NHU CẦU / TIÊU CHÍ */}
+					<section className={style.section}>
+						<div className={style.sectionHead}>
+							<h4><FontAwesomeIcon icon="fa-light fa-magnifying-glass-location" /> Nhu cầu / tiêu chí</h4>
+							{canEdit && (
+								<Button small outline leftIcon={<FontAwesomeIcon icon="fa-light fa-plus" />} onClick={() => setOpenDemand({})}>
+									Thêm nhu cầu
+								</Button>
+							)}
+						</div>
+						{demands.length === 0
+							? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Chưa có nhu cầu" />
+							: demands.map((d) => {
+								const budget = range(d.budget_min, d.budget_max, money);
+								const area = range(d.area_min, d.area_max, null, 'm²');
+								const parts = [
+									budget ? `💰 ${budget}` : '',
+									area ? `📐 ${area}` : '',
+									d.bedrooms_min > 0 ? `🛏 ≥ ${d.bedrooms_min} PN` : '',
+									d.direction ? `🧭 ${directionMap[d.direction] || d.direction}` : '',
+									d.province_code ? `📍 ${provinceMap[d.province_code] || ''}` : '',
+									d.purpose ? (purposeMap[d.purpose] || d.purpose) : '',
+								].filter(Boolean);
+								return (
+									<div key={d.id} className={style.demandItem}>
+										<div className={style.demandMain}>
+											<Tag color="blue">{demandTypeMap[d.demand_type] || d.demand_type}</Tag>
+											{d.property_type && <span className={style.demandType}>{propTypeMap[d.property_type] || d.property_type}</span>}
+											{!d.is_active && <Tag>Ngừng tìm</Tag>}
+										</div>
+										{parts.length > 0 && <p className={style.demandCriteria}>{parts.join('  ·  ')}</p>}
+										{canEdit && (
+											<div className={style.careActions}>
+												<button type="button" onClick={() => setOpenDemand(d)}>Sửa</button>
+												<button type="button" className={style.linkDanger} onClick={() => events.removeDemand(d)}>Xóa</button>
+											</div>
+										)}
+									</div>
+								);
+							})}
+					</section>
 
 					{/* CHĂM SÓC */}
 					<section className={style.section}>
@@ -184,11 +315,19 @@ function CustomerDetailDrawer({open, customer, stageMap = {}, tempMap = {}, onCl
 			)}
 
 			<CareFormModal open={openCare} loading={addingCare} careTypes={careTypes}
+				careTemplates={careTemplates} customerName={customer?.full_name}
 				onCancel={() => setOpenCare(false)} onSubmit={events.saveCare} />
 			<CareCompleteModal open={!!openComplete} care={openComplete} loading={completing} careTypes={careTypes}
+				careTemplates={careTemplates} customerName={customer?.full_name}
 				onCancel={() => setOpenComplete(null)} onSubmit={events.complete} />
 			<InteractionFormModal open={openInt} loading={addingInt} interactionTypes={interactionTypes}
 				onCancel={() => setOpenInt(false)} onSubmit={events.saveInt} />
+			<CustomerTransferModal open={openTransfer} loading={transferring} customer={customer}
+				onCancel={() => setOpenTransfer(false)} onSubmit={events.transfer} />
+			<CustomerDemandModal open={!!openDemand} item={openDemand?.id ? openDemand : null}
+				loading={addingDemand || updatingDemand}
+				options={{demandTypes, propertyTypes, purposes, directions}}
+				onCancel={() => setOpenDemand(null)} onSubmit={events.saveDemand} />
 		</Drawer>
 	);
 }

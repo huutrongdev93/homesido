@@ -4,15 +4,16 @@
 → làm xong ghi kết quả (tự tạo 1 **tương tác** vào timeline + cập nhật `last_interaction_at`) + đặt
 lịch tiếp. Gồm cả **timeline tương tác** của khách (xem/ghi trong drawer chi tiết khách).
 
-Có **tick nền** (Bước 6): nhắc lịch đến hạn + phát hiện khách nguội (xem mục Tác vụ nền dưới).
-Chưa làm: **auto-release** khách quá hạn khóa (gắn với khóa khách — Bước 3); **quản lý kịch bản**
-care_templates (Bước 8) — hiện care form nhập nội dung tự do.
+Có **tick nền**: nhắc lịch đến hạn + phát hiện khách nguội + **auto-release** khách quá hạn khóa
+(xem mục Tác vụ nền dưới). **Kịch bản chăm sóc** (care_templates) đã có CRUD + nối vào form: chọn
+kịch bản trong CareFormModal/CareCompleteModal → prefill nội dung (thay `{{ten_khach}}`) — xem
+[catalog.md](catalog.md).
 
 ## Bản đồ file (front-to-back)
 
 ```
 Chăm sóc chủ động (Care)
-├─ FE  src/features/Care/pages/CareToday.js                       # "Cần chăm hôm nay": Table việc đến hạn/quá hạn + nút Hoàn thành
+├─ FE  src/features/Care/pages/CareToday.js                       # "Cần chăm hôm nay": Table việc đến hạn/quá hạn (bọc `.app-card`) + nút Hoàn thành
 │  ├─ src/features/Care/components/CareFormModal.js               # đặt lịch: type + scheduled_at (DateField showTime) + content
 │  ├─ src/features/Care/components/CareCompleteModal.js           # hoàn thành: result_note + (tuỳ chọn) đặt lịch tiếp (checkbox)
 │  ├─ src/features/Customer/components/CustomerDetailDrawer.js    # Drawer chi tiết khách: Lịch chăm + Timeline; host 3 modal
@@ -45,7 +46,7 @@ Chăm sóc chủ động (Care)
 `PUT api/care/{id}/complete` (body: `result_note`, tuỳ chọn `next_scheduled_at`/`next_type`/`next_content`):
 1. care → `status=done`, `completed_at=now`, lưu `result_note`.
 2. **Tạo 1 `customer_interaction`** (type = care.type, content = result_note, direction `out`) → vào timeline.
-3. **Cập nhật khách**: `last_interaction_at=now`, `is_cold_flagged=0` (gỡ cờ nguội).
+3. **Cập nhật khách** qua `Customer::touch()`: `last_interaction_at=now`, `is_cold_flagged=0` (gỡ cờ nguội), **gia hạn khóa** `locked_until=now+CUSTOMER_LOCK_DAYS` (đang chăm tích cực → không bị auto-release, xem [customer.md](customer.md)).
 4. Nếu có `next_scheduled_at` → tạo lịch chăm mới (pending).
 → FE invalidate `['Care','Interaction','Customer']` để mọi nơi refetch.
 
@@ -57,6 +58,7 @@ Cron gọi `schedule-run` mỗi phút → chạy các tick due (xem `app/Console
 |---|---|---|---|
 | `care-reminder-tick` | mỗi phút | `app/Services/Care/CareReminder.php` | Digest 1 thông báo/sales có việc `pending` đến hạn (`scheduled_at <= now`) qua `Notifier::sendUnique` (không spam mỗi phút; nhắc lại sau khi user đọc). Link `/care`. |
 | `customer-cold-tick` | 07:00 hằng ngày | `app/Services/Care/ColdDetector.php` | Khách quá `CARE_COLD_DAYS` (env, mặc định 7) ngày không tương tác (`COALESCE(last_interaction_at, created)`) mà chưa cờ, không phải won/lost → `is_cold_flagged=1` + báo sales. Lô `BATCH=300`. |
+| `customer-release-tick` | 01:00 hằng ngày | `app/Services/Care/CustomerRelease.php` | Khách `locked_until < now` (lâu không ai `touch`), `assigned_user_id > 0`, không won/lost → trả về kho chung (`assigned_user_id=0`, `locked_until=null`) + báo sales cũ. Lô `BATCH=300`. Xem [customer.md](customer.md) (Bước 3). |
 
 - **Config**: `CARE_COLD_DAYS` (env, default 7). Không cần khai — có default trong code.
 - Tick nào cũng guard `schema()->hasTable(...)` → bảng chưa migrate thì thoát êm; lỗi được `schedule.php` bọc try/catch + `Log`.

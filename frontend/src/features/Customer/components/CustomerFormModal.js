@@ -14,12 +14,12 @@ import {InputField, SelectField, TextAreaField} from "~/components/Forms";
 const EMPTY = {
 	full_name: '', phone: '', phone_alt: '', email: '', gender: '',
 	birth_year: '', occupation: '', address: '',
-	pipeline_stage: 'new', temperature: 'warm', note: '',
+	pipeline_stage: 'new', temperature: 'warm', lead_source_id: undefined, note: '',
 };
 
 function CustomerFormModal({open, item, loading, options = {}, onCancel, onSubmit}) {
 
-	const {genders = [], stages = [], temperatures = []} = options;
+	const {genders = [], stages = [], temperatures = [], leadSources = []} = options;
 
 	const {control, handleSubmit, reset, formState: {errors}} = useForm({
 		defaultValues: EMPTY,
@@ -43,6 +43,7 @@ function CustomerFormModal({open, item, loading, options = {}, onCancel, onSubmi
 			address: item.address || '',
 			pipeline_stage: item.pipeline_stage || 'new',
 			temperature: item.temperature || 'warm',
+			lead_source_id: item.lead_source_id || undefined,
 			note: item.note || '',
 		} : EMPTY);
 	}, [open, item, reset]);
@@ -88,6 +89,9 @@ function CustomerFormModal({open, item, loading, options = {}, onCancel, onSubmi
 				)} />
 				<Controller control={control} name="temperature" render={({field}) => (
 					<SelectField label="Mức quan tâm" options={temperatures} errors={errors} {...field} />
+				)} />
+				<Controller control={control} name="lead_source_id" render={({field}) => (
+					<SelectField label="Nguồn khách" allowClear options={leadSources} errors={errors} {...field} />
 				)} />
 			</div>
 

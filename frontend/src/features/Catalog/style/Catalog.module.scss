@@ -1,0 +1,39 @@
+// Trang Cấu hình danh mục — thanh tiêu đề tab + nút thao tác hàng (dùng lại tone Customer).
+
+.tabBar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+
+    h3 {
+        font-size: 15px;
+        font-weight: 700;
+        color: #1f2937;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+}
+
+.rowActions {
+    display: inline-flex;
+    gap: 6px;
+    justify-content: flex-end;
+}
+
+.iconBtn {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 6px;
+    color: #6b7280;
+    font-size: 14px;
+    transition: background .15s, color .15s;
+
+    &:hover { background: #f1f3f9; color: #2563eb; }
+
+    &.danger:hover { background: #ffe9e9; color: #ef4444; }
+}

@@ -5,6 +5,7 @@ import Home from "~/features/Home/pages";
 import PageNotFound from "../features/NotFound/pages";
 import Account from "~/features/Account/pages/Account";
 import Permission from "~/features/Permission/pages/Permission";
+import Catalog from "~/features/Catalog/pages/Catalog";
 import Customer from "~/features/Customer/pages/Customer";
 import Property from "~/features/Property/pages/Property";
 import CareToday from "~/features/Care/pages/CareToday";
@@ -32,6 +33,7 @@ export const privateRoutes = [
 	// ===== CHẾ ĐỘ QUẢN TRỊ (/admin/*) — layout AdminLayout với sidebar riêng =====
 	{ path: "/admin", component: () => <Navigate to="/admin/permission" replace />, layout: AdminLayout },
 	{ path: "/admin/permission", component: Permission, cap: 'permission', layout: AdminLayout },
+	{ path: "/admin/catalog", component: Catalog, cap: 'permission', layout: AdminLayout },
 	// Route cũ → redirect sang khu quản trị mới
 	{ path: "/permission", component: () => <Navigate to="/admin/permission" replace /> },
 ];

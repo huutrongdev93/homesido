@@ -173,10 +173,8 @@ class CareApi extends ApiController
             'interacted_at' => date('Y-m-d H:i:s'),
         ]);
 
-        Customer::where('id', (int) $care->customer_id)->update([
-            'last_interaction_at' => date('Y-m-d H:i:s'),
-            'is_cold_flagged'     => 0,
-        ]);
+        // Cập nhật mốc chăm sóc + gỡ cờ nguội + gia hạn khóa (đang chăm tích cực).
+        Customer::touch((int) $care->customer_id);
 
         // Tuỳ chọn: đặt lịch chăm tiếp theo.
         $next = trim((string) $request->input('next_scheduled_at'));

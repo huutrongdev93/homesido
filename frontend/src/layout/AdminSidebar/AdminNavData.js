@@ -22,6 +22,13 @@ export const AdminNavData = () => {
 			to: '/admin/permission',
 			icon: <FontAwesomeIcon icon="fa-light fa-user-lock" />,
 		});
+		items.push({
+			key: 'admin-catalog',
+			label: <Link to="/admin/catalog">Cấu hình danh mục</Link>,
+			title: 'Cấu hình danh mục',
+			to: '/admin/catalog',
+			icon: <FontAwesomeIcon icon="fa-light fa-sliders" />,
+		});
 	}
 
 	return items;

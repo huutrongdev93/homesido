@@ -128,7 +128,6 @@ npm test           # CRA/jest test runner
 
 Khi quét source để hiểu một chức năng, **ghi lại vào `docs/features/<feature>.md`** thay vì quét lại lần sau (trace end-to-end + gotcha), rồi liên kết từ index dưới. Xem `docs/features/README.md`.
 
-
 > **BẮT BUỘC — đồng bộ feature notes khi code:**
 > - **Tạo chức năng/module mới** → **BẮT BUỘC tạo mới** `docs/features/<feature>.md` (trace end-to-end + gotcha) trong cùng lần sửa, và thêm dòng vào index dưới.
 > - **Chỉnh sửa chức năng cũ** → **BẮT BUỘC cập nhật** `docs/features/<feature>.md` cho khớp thay đổi; **nếu file chưa có thì tạo mới**.
@@ -142,3 +141,6 @@ Khi quét source để hiểu một chức năng, **ghi lại vào `docs/feature
 - [Khách hàng (Customer — Core CRM)](docs/features/customer.md) — CRUD + filter/phân trang + chống trùng SĐT + data-scope + xóa mềm; vertical slice xác lập khuôn CRUD (ApiController base, RTK Query, caps).
 - [Bất động sản (Property — Kho hàng)](docs/features/property.md) — CRUD + data-scope kho chung (shared) + địa chỉ tỉnh→phường (LocationApi) + xóa mềm; media chờ pipeline upload.
 - [Chăm sóc chủ động (Care + Timeline)](docs/features/care.md) — lịch chăm sóc + "Cần chăm hôm nay" + timeline tương tác (drawer chi tiết khách); hoàn thành care → tạo tương tác + cập nhật last_interaction_at. Tick nền (Bước 6) & template (Bước 8) chưa làm.
+- [Dashboard tổng hợp (Home)](docs/features/dashboard.md) — `GET api/dashboard` gộp KPI tháng + "cần chăm hôm nay" + phễu khách theo giai đoạn + kho BĐS theo trạng thái; áp data-scope; CSS bar (không thư viện chart).
+- [Danh mục phụ + Cấu hình (Catalog)](docs/features/catalog.md) — CRUD 4 danh mục (nguồn khách/dự án/chủ nhà/kịch bản) gom ở `/admin/catalog` (cap `permission`); nối select vào form Khách hàng/BĐS/Chăm sóc; CatalogManager generic (form động theo `fields`).
+- [Media BĐS + Dung lượng](docs/features/media.md) — upload ảnh/video cho BĐS (`property_media`, lưu `storage/uploads` phục vụ qua `/uploads`); kế toán **dung lượng theo từng nhân viên** (user meta `storage_used_bytes`) cho gói theo dung lượng; xóa mềm giữ media, xóa hẳn (`?force=1`) purge file + hoàn dung lượng.

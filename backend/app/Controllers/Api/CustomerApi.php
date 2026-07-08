@@ -5,7 +5,11 @@ namespace App\Controllers\Api;
 use App\Models\Customer;
 use App\Models\CustomerDemand;
 use App\Models\CustomerInteraction;
+use App\Models\CustomerTransfer;
+use App\Services\Notification\Notifier;
 use Illuminate\Support\Str;
+use SkillDo\Cms\Models\User;
+use SkillDo\Cms\Support\UserRole;
 use SkillDo\Http\Request;
 use SkillDo\Support\Auth;
 use SkillDo\Validate\Rule;
@@ -26,6 +30,15 @@ class CustomerApi extends ApiController
     const INTERACTION_TYPES = ['call', 'sms', 'zalo', 'email', 'meeting', 'note', 'viewing'];
     const DIRECTIONS        = ['in', 'out'];
 
+    /** Enum hợp lệ cho nhu cầu / tiêu chí khách (customer_demands). */
+    const DEMAND_TYPES          = ['buy', 'rent', 'sell', 'consign'];
+    const DEMAND_PROPERTY_TYPES = ['apartment', 'house', 'villa', 'land', 'shophouse', 'farmland', 'warehouse', 'office'];
+    const DEMAND_PURPOSES       = ['live', 'invest'];
+    const DEMAND_DIRECTIONS     = ['east', 'west', 'south', 'north', 'southeast', 'southwest', 'northeast', 'northwest'];
+
+    /** Chức vụ KHÔNG cho phép nhận bàn giao khách (siêu quản trị / master framework). */
+    const NON_ASSIGNABLE_ROLES = ['administrator', 'root'];
+
     /**
      * GET api/customer — danh sách có filter + phân trang, áp data-scope.
      * Query: page, pageSize, keyword (tên/SĐT), pipeline_stage, temperature, assigned_user_id.
@@ -38,10 +51,11 @@ class CustomerApi extends ApiController
 
         $query = Customer::query();
 
-        // Data-scope: chỉ xem khách của mình nếu không có quyền xem toàn sàn.
+        // Data-scope: không có quyền xem toàn sàn → chỉ thấy khách của mình + khách "kho chung"
+        // (chưa ai phụ trách) đang KHÔNG bị khóa (khách bị khóa của người khác coi như đã có chủ).
         if (!$this->canViewAll('customer_view_all'))
         {
-            $query->where('assigned_user_id', $this->userId());
+            $this->applyScope($query);
         }
 
         $keyword = trim((string) $request->input('keyword'));
@@ -93,28 +107,8 @@ class CustomerApi extends ApiController
 
         $customer = $this->findOwned((int) $id);
 
-        $demands = [];
-        foreach (CustomerDemand::where('customer_id', $customer->id)->orderByDesc('id')->get() as $demand)
-        {
-            $demands[] = [
-                'id'            => (int) $demand->id,
-                'demand_type'   => (string) $demand->demand_type,
-                'property_type' => (string) $demand->property_type,
-                'purpose'       => $demand->purpose,
-                'province_code' => (int) $demand->province_code,
-                'ward_code'     => (int) $demand->ward_code,
-                'budget_min'    => $demand->budget_min,
-                'budget_max'    => $demand->budget_max,
-                'area_min'      => $demand->area_min,
-                'area_max'      => $demand->area_max,
-                'bedrooms_min'  => $demand->bedrooms_min,
-                'direction'     => $demand->direction,
-                'is_active'     => (int) $demand->is_active === 1,
-            ];
-        }
-
         $data = $this->transform($customer);
-        $data['demands'] = $demands;
+        $data['demands'] = $this->listDemands((int) $customer->id);
 
         response()->success('success', $data);
     }
@@ -146,6 +140,9 @@ class CustomerApi extends ApiController
         // Sales tạo khách → tự phụ trách. Chỉ người xem-toàn-sàn mới được chỉ định sales khác.
         $assigned = (int) $request->input('assigned_user_id');
         $data['assigned_user_id'] = ($assigned > 0 && $this->canViewAll('customer_view_all')) ? $assigned : $this->userId();
+
+        // Nhận khách → khóa cho sales phụ trách (X ngày) để người khác không nhận trùng.
+        $data['locked_until'] = Customer::lockExpiry();
 
         $id = Customer::create($data);
 
@@ -183,7 +180,7 @@ class CustomerApi extends ApiController
         $data = $this->collectInput($request);
         $data['phone'] = $phone;
 
-        // Chỉ người xem-toàn-sàn được đổi người phụ trách (bàn giao có màn riêng ở bước sau).
+        // Chỉ người xem-toàn-sàn được đổi người phụ trách (bàn giao có endpoint riêng).
         if ($this->canViewAll('customer_view_all'))
         {
             $assigned = (int) $request->input('assigned_user_id');
@@ -191,6 +188,12 @@ class CustomerApi extends ApiController
             {
                 $data['assigned_user_id'] = $assigned;
             }
+        }
+        // Sales chạm vào khách kho chung → tự nhận + khóa (nhận khách từ kho chung).
+        elseif ((int) $customer->assigned_user_id === 0)
+        {
+            $data['assigned_user_id'] = $this->userId();
+            $data['locked_until']     = Customer::lockExpiry();
         }
 
         Customer::where('id', $customer->id)->update($data);
@@ -269,21 +272,207 @@ class CustomerApi extends ApiController
             'interacted_at' => date('Y-m-d H:i:s'),
         ]);
 
-        $this->touchInteraction((int) $customer->id);
+        // Sales tương tác với khách kho chung → tự nhận (nhận khách từ kho chung).
+        if (!$this->canViewAll('customer_view_all') && (int) $customer->assigned_user_id === 0)
+        {
+            Customer::where('id', $customer->id)->update(['assigned_user_id' => $this->userId()]);
+        }
+
+        // Cập nhật mốc tương tác + gia hạn khóa (đang chăm tích cực → không bị auto-release).
+        Customer::touch((int) $customer->id);
 
         response()->success('Đã ghi tương tác', ['id' => (int) $intId]);
     }
 
-    /** Cập nhật mốc tương tác gần nhất + gỡ cờ nguội (gọi khi có tương tác/chăm sóc). */
-    protected function touchInteraction(int $customerId): void
+    /**
+     * GET api/customer/{id}/demands — danh sách nhu cầu / tiêu chí của khách.
+     */
+    public function demands(Request $request, $id): void
     {
-        Customer::where('id', $customerId)->update([
-            'last_interaction_at' => date('Y-m-d H:i:s'),
-            'is_cold_flagged'     => 0,
+        $this->requireCap('customer_view', 'Bạn không có quyền xem khách hàng.');
+
+        $customer = $this->findOwned((int) $id);
+
+        response()->success('success', $this->listDemands((int) $customer->id));
+    }
+
+    /**
+     * POST api/customer/{id}/demands — thêm 1 nhu cầu cho khách.
+     */
+    public function addDemand(Request $request, $id): void
+    {
+        $this->requireCap('customer_edit', 'Bạn không có quyền cập nhật khách hàng.');
+
+        $customer = $this->findOwned((int) $id);
+
+        $data = $this->collectDemandInput($request);
+        $data['customer_id'] = (int) $customer->id;
+
+        $demandId = CustomerDemand::create($data);
+
+        if (!is_numeric($demandId))
+        {
+            response()->error('Thêm nhu cầu thất bại.');
+        }
+
+        response()->success('Đã thêm nhu cầu', ['id' => (int) $demandId]);
+    }
+
+    /**
+     * PUT api/customer/{id}/demands/{demandId} — cập nhật 1 nhu cầu.
+     */
+    public function updateDemand(Request $request, $id, $demandId): void
+    {
+        $this->requireCap('customer_edit', 'Bạn không có quyền cập nhật khách hàng.');
+
+        $customer = $this->findOwned((int) $id);
+        $demand   = $this->findDemand((int) $customer->id, (int) $demandId);
+
+        CustomerDemand::where('id', $demand->id)->update($this->collectDemandInput($request));
+
+        response()->success('Đã cập nhật nhu cầu', ['id' => (int) $demand->id]);
+    }
+
+    /**
+     * DELETE api/customer/{id}/demands/{demandId} — xóa CỨNG 1 nhu cầu (bảng không có xóa mềm).
+     */
+    public function destroyDemand(Request $request, $id, $demandId): void
+    {
+        $this->requireCap('customer_edit', 'Bạn không có quyền cập nhật khách hàng.');
+
+        $customer = $this->findOwned((int) $id);
+        $demand   = $this->findDemand((int) $customer->id, (int) $demandId);
+
+        CustomerDemand::where('id', $demand->id)->delete();
+
+        response()->success('Đã xóa nhu cầu', ['id' => (int) $demand->id]);
+    }
+
+    /**
+     * POST api/customer/{id}/transfer — bàn giao khách cho nhân viên khác.
+     * Body: to_user_id (bắt buộc), reason (tuỳ chọn). Đổi assigned_user_id, ghi lịch sử
+     * customer_transfers, reset khóa cho người nhận, báo cả 2 bên.
+     */
+    public function transfer(Request $request, $id): void
+    {
+        $this->requireCap('customer_transfer', 'Bạn không có quyền bàn giao khách hàng.');
+
+        $customer = $this->findOwned((int) $id);
+
+        $toUserId = (int) $request->input('to_user_id');
+        if ($toUserId <= 0)
+        {
+            response()->setStatusCode(422)->setApiStatus(422)->error('Vui lòng chọn nhân viên nhận bàn giao.');
+        }
+
+        $fromUserId = (int) $customer->assigned_user_id;
+        if ($toUserId === $fromUserId)
+        {
+            response()->setStatusCode(422)->setApiStatus(422)->error('Nhân viên này đang phụ trách khách hàng.');
+        }
+
+        $target = $this->assertAssignable($toUserId);
+
+        $reason = Str::clear((string) $request->input('reason'));
+
+        Customer::where('id', $customer->id)->update([
+            'assigned_user_id' => $toUserId,
+            'locked_until'     => Customer::lockExpiry(),
+            'is_cold_flagged'  => 0,
         ]);
+
+        CustomerTransfer::create([
+            'customer_id'    => (int) $customer->id,
+            'from_user_id'   => $fromUserId,
+            'to_user_id'     => $toUserId,
+            'transferred_by' => $this->userId(),
+            'reason'         => $reason,
+        ]);
+
+        // Báo người nhận + (nếu có) người giao cũ.
+        Notifier::send($toUserId, 'info', 'Bạn được bàn giao khách',
+            'Khách "' . $customer->full_name . '" vừa được bàn giao cho bạn.', '/customers');
+
+        if ($fromUserId > 0 && $fromUserId !== $this->userId())
+        {
+            Notifier::send($fromUserId, 'info', 'Khách đã được bàn giao',
+                'Khách "' . $customer->full_name . '" đã được chuyển cho ' . $this->userLabel($target) . '.', '/customers');
+        }
+
+        response()->success('Đã bàn giao khách hàng', ['id' => (int) $customer->id, 'to_user_id' => $toUserId]);
+    }
+
+    /**
+     * GET api/customer/users — danh sách nhân viên có thể nhận bàn giao (cho select ở FE).
+     * Cần cap customer_transfer. Loại tài khoản siêu quản trị / master và tài khoản bị khóa.
+     */
+    public function assignableUsers(Request $request): void
+    {
+        $this->requireCap('customer_transfer', 'Bạn không có quyền bàn giao khách hàng.');
+
+        $query = User::whereNotIn('role', self::NON_ASSIGNABLE_ROLES)
+            ->where('status', '!=', 'trash')
+            ->where('status', '!=', 'block')
+            ->orderByDesc('id');
+
+        $keyword = Str::clear((string) $request->input('keyword'));
+        if (!empty($keyword))
+        {
+            $query->where(function ($q) use ($keyword) {
+                $q->where('username', 'like', "%$keyword%")
+                    ->orWhere('firstname', 'like', "%$keyword%")
+                    ->orWhere('lastname', 'like', "%$keyword%")
+                    ->orWhere('phone', 'like', "%$keyword%");
+            });
+        }
+
+        $items = [];
+        foreach ($query->get() as $user)
+        {
+            // Loại tài khoản siêu quản trị theo cap (đồng nhất với chặn ở loginAs / transfer).
+            if (UserRole::hasCap((int) $user->id, 'administrator') || UserRole::hasCap((int) $user->id, 'root'))
+            {
+                continue;
+            }
+
+            $items[] = [
+                'id'       => (int) $user->id,
+                'fullname' => $this->userLabel($user),
+                'role'     => (string) $user->role,
+            ];
+        }
+
+        response()->success('success', $items);
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────────────────
+
+    /** Kiểm tra user đích hợp lệ để nhận bàn giao (tồn tại, hoạt động, không phải siêu quản trị). */
+    protected function assertAssignable(int $userId)
+    {
+        $user = User::find($userId);
+
+        if (!hasItems($user) || in_array($user->role, self::NON_ASSIGNABLE_ROLES, true)
+            || UserRole::hasCap($userId, 'administrator') || UserRole::hasCap($userId, 'root'))
+        {
+            response()->setStatusCode(422)->setApiStatus(422)->error('Nhân viên nhận bàn giao không hợp lệ.');
+        }
+
+        if (in_array($user->status, ['trash', 'block'], true))
+        {
+            response()->setStatusCode(422)->setApiStatus(422)->error('Nhân viên nhận bàn giao đang bị vô hiệu hóa.');
+        }
+
+        return $user;
+    }
+
+    /** Tên hiển thị của user (họ tên; rỗng thì dùng username). */
+    protected function userLabel($user): string
+    {
+        $name = trim((string) $user->lastname . ' ' . (string) $user->firstname);
+
+        return $name !== '' ? $name : (string) $user->username;
+    }
 
     /** Tìm khách theo id trong phạm vi được phép; 404/403 nếu không thấy/không thuộc mình. */
     protected function findOwned(int $id)
@@ -295,12 +484,114 @@ class CustomerApi extends ApiController
             response()->setStatusCode(404)->setApiStatus(404)->error('Khách hàng không tồn tại.');
         }
 
-        if (!$this->canViewAll('customer_view_all') && (int) $customer->assigned_user_id !== $this->userId())
+        // Không có quyền toàn sàn → chỉ được với khách của mình hoặc khách kho chung chưa khóa.
+        if (!$this->canViewAll('customer_view_all')
+            && (int) $customer->assigned_user_id !== $this->userId()
+            && !$this->isSharedUnlocked($customer))
         {
             response()->setStatusCode(403)->setApiStatus(403)->error('Bạn không phụ trách khách hàng này.');
         }
 
         return $customer;
+    }
+
+    /** Nhu cầu của 1 khách (mới nhất trước) → mảng cho FE. */
+    protected function listDemands(int $customerId): array
+    {
+        $items = [];
+        foreach (CustomerDemand::where('customer_id', $customerId)->orderByDesc('id')->get() as $demand)
+        {
+            $items[] = $this->transformDemand($demand);
+        }
+
+        return $items;
+    }
+
+    /** Map 1 bản ghi nhu cầu → mảng cho FE. */
+    protected function transformDemand($demand): array
+    {
+        return [
+            'id'            => (int) $demand->id,
+            'demand_type'   => (string) $demand->demand_type,
+            'property_type' => (string) $demand->property_type,
+            'purpose'       => (string) ($demand->purpose ?? ''),
+            'province_code' => (int) $demand->province_code,
+            'ward_code'     => (int) $demand->ward_code,
+            'budget_min'    => $demand->budget_min,
+            'budget_max'    => $demand->budget_max,
+            'area_min'      => $demand->area_min,
+            'area_max'      => $demand->area_max,
+            'bedrooms_min'  => (int) $demand->bedrooms_min,
+            'direction'     => (string) ($demand->direction ?? ''),
+            'is_active'     => (int) $demand->is_active === 1,
+        ];
+    }
+
+    /** Tìm nhu cầu thuộc đúng khách; 404 nếu không thấy hoặc không thuộc khách này. */
+    protected function findDemand(int $customerId, int $demandId)
+    {
+        $demand = CustomerDemand::where('id', $demandId)->where('customer_id', $customerId)->first();
+
+        if (!hasItems($demand))
+        {
+            response()->setStatusCode(404)->setApiStatus(404)->error('Nhu cầu không tồn tại.');
+        }
+
+        return $demand;
+    }
+
+    /** Gom + whitelist input cho tạo/sửa nhu cầu (không gồm customer_id — xử lý riêng). */
+    protected function collectDemandInput(Request $request): array
+    {
+        $demandType   = (string) $request->input('demand_type');
+        $propertyType = (string) $request->input('property_type');
+        $purpose      = (string) $request->input('purpose');
+        $direction    = (string) $request->input('direction');
+
+        return [
+            'demand_type'   => in_array($demandType, self::DEMAND_TYPES, true) ? $demandType : 'buy',
+            'property_type' => in_array($propertyType, self::DEMAND_PROPERTY_TYPES, true) ? $propertyType : '',
+            'purpose'       => in_array($purpose, self::DEMAND_PURPOSES, true) ? $purpose : '',
+            'province_code' => max(0, (int) $request->input('province_code')),
+            'ward_code'     => max(0, (int) $request->input('ward_code')),
+            'budget_min'    => max(0, (float) $request->input('budget_min')),
+            'budget_max'    => max(0, (float) $request->input('budget_max')),
+            'area_min'      => max(0, (float) $request->input('area_min')),
+            'area_max'      => max(0, (float) $request->input('area_max')),
+            'bedrooms_min'  => max(0, (int) $request->input('bedrooms_min')),
+            'direction'     => in_array($direction, self::DEMAND_DIRECTIONS, true) ? $direction : '',
+            'is_active'     => (int) $request->input('is_active') === 1 ? 1 : 0,
+        ];
+    }
+
+    /**
+     * Áp data-scope cho query list của sales thường (không có customer_view_all): thấy khách của
+     * mình HOẶC khách kho chung (assigned_user_id = 0) đang không bị khóa.
+     */
+    protected function applyScope($query): void
+    {
+        $now = date('Y-m-d H:i:s');
+
+        $query->where(function ($q) use ($now) {
+            $q->where('assigned_user_id', $this->userId())
+                ->orWhere(function ($shared) use ($now) {
+                    $shared->where('assigned_user_id', 0)
+                        ->where(function ($lock) use ($now) {
+                            $lock->whereNull('locked_until')->orWhere('locked_until', '<=', $now);
+                        });
+                });
+        });
+    }
+
+    /** Khách thuộc kho chung (chưa ai phụ trách) và không còn bị khóa. */
+    protected function isSharedUnlocked($customer): bool
+    {
+        if ((int) $customer->assigned_user_id !== 0)
+        {
+            return false;
+        }
+
+        return empty($customer->locked_until) || $customer->locked_until <= date('Y-m-d H:i:s');
     }
 
     /** Chống trùng SĐT trong toàn sàn (loại trừ chính khách đang sửa). */

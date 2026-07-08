@@ -4,6 +4,7 @@ namespace App\Controllers\Api;
 
 use App\Models\Property;
 use App\Models\PropertyMedia;
+use App\Services\Storage\PropertyMediaService;
 use Illuminate\Support\Str;
 use SkillDo\Http\Request;
 use SkillDo\Validate\Rule;
@@ -94,14 +95,9 @@ class PropertyApi extends ApiController
         $property = $this->findViewable((int) $id);
 
         $media = [];
-        foreach (PropertyMedia::where('property_id', $property->id)->orderBy('sort_order')->get() as $m)
+        foreach (PropertyMedia::where('property_id', $property->id)->orderBy('sort_order')->orderBy('id')->get() as $m)
         {
-            $media[] = [
-                'id'         => (int) $m->id,
-                'type'       => (string) $m->type,
-                'path'       => (string) $m->path,
-                'sort_order' => (int) $m->sort_order,
-            ];
+            $media[] = $this->transformMedia($m);
         }
 
         $data = $this->transform($property);
@@ -186,7 +182,8 @@ class PropertyApi extends ApiController
     }
 
     /**
-     * DELETE api/property/{id} — xóa mềm (trash = 1).
+     * DELETE api/property/{id} — xóa mềm (trash = 1); GIỮ media (xem lựa chọn nghiệp vụ).
+     * `?force=1` = xóa HẲN: purge media (xóa file + hoàn dung lượng người upload) + xóa cứng record.
      */
     public function destroy(Request $request, $id): void
     {
@@ -194,9 +191,134 @@ class PropertyApi extends ApiController
 
         $property = $this->findOwned((int) $id);
 
+        if (filter_var($request->input('force'), FILTER_VALIDATE_BOOLEAN))
+        {
+            PropertyMediaService::purgeProperty((int) $property->id);
+            Property::where('id', $property->id)->delete();   // xóa CỨNG record
+
+            response()->success('Đã xóa hẳn bất động sản', ['id' => (int) $property->id]);
+        }
+
         Property::where('id', $property->id)->trash();
 
         response()->success('Đã xóa bất động sản', ['id' => (int) $property->id]);
+    }
+
+    // ─── Media (ảnh / video) ─────────────────────────────────────────────────────────
+
+    /** GET api/property/{id}/media — danh sách media của BĐS (theo scope xem). */
+    public function mediaIndex(Request $request, $id): void
+    {
+        $this->requireCap('property_view', 'Bạn không có quyền xem bất động sản.');
+
+        $property = $this->findViewable((int) $id);
+
+        $items = [];
+        foreach (PropertyMedia::where('property_id', $property->id)->orderBy('sort_order')->orderBy('id')->get() as $m)
+        {
+            $items[] = $this->transformMedia($m);
+        }
+
+        response()->success('success', $items);
+    }
+
+    /** POST api/property/{id}/media — upload nhiều file (field `files[]`). Gom lỗi từng file. */
+    public function mediaUpload(Request $request, $id): void
+    {
+        $this->requireCap('property_edit', 'Bạn không có quyền sửa bất động sản.');
+
+        $property = $this->findOwned((int) $id);
+
+        $files = $request->file('files');
+        if (empty($files))
+        {
+            response()->setStatusCode(422)->setApiStatus(422)->error('Chưa chọn tệp nào để tải lên.');
+        }
+        if (!is_array($files))
+        {
+            $files = [$files];
+        }
+
+        $userId   = $this->userId();
+        $maxOrder = (int) PropertyMedia::where('property_id', $property->id)->max('sort_order');
+
+        $saved  = 0;
+        $errors = [];
+        foreach ($files as $file)
+        {
+            $maxOrder++;
+            $res = PropertyMediaService::store($file, (int) $property->id, $userId, $maxOrder);
+
+            if ($res['ok'])
+            {
+                $saved++;
+            }
+            else
+            {
+                $errors[] = $res['error'];
+            }
+        }
+
+        if ($saved === 0)
+        {
+            response()->setStatusCode(422)->setApiStatus(422)->error($errors[0] ?? 'Tải lên thất bại.');
+        }
+
+        response()->success('Đã tải lên ' . $saved . ' tệp', ['saved' => $saved, 'errors' => $errors]);
+    }
+
+    /** DELETE api/property/{id}/media/{mediaId} — xóa 1 media (xóa file + hoàn dung lượng). */
+    public function mediaDelete(Request $request, $id, $mediaId): void
+    {
+        $this->requireCap('property_edit', 'Bạn không có quyền sửa bất động sản.');
+
+        $property = $this->findOwned((int) $id);
+
+        $row = PropertyMedia::where('id', (int) $mediaId)->where('property_id', $property->id)->first();
+        if (!hasItems($row))
+        {
+            response()->setStatusCode(404)->setApiStatus(404)->error('Tệp không tồn tại.');
+        }
+
+        PropertyMediaService::delete($row);
+
+        response()->success('Đã xóa tệp', ['id' => (int) $mediaId]);
+    }
+
+    /** PUT api/property/{id}/media/reorder — cập nhật thứ tự hiển thị (body `order`: mảng id). */
+    public function mediaReorder(Request $request, $id): void
+    {
+        $this->requireCap('property_edit', 'Bạn không có quyền sửa bất động sản.');
+
+        $property = $this->findOwned((int) $id);
+
+        $order = $request->input('order');
+        if (!is_array($order))
+        {
+            response()->setStatusCode(422)->setApiStatus(422)->error('Thứ tự không hợp lệ.');
+        }
+
+        $i = 0;
+        foreach ($order as $mediaId)
+        {
+            PropertyMedia::where('id', (int) $mediaId)->where('property_id', $property->id)->update(['sort_order' => $i]);
+            $i++;
+        }
+
+        response()->success('Đã cập nhật thứ tự');
+    }
+
+    /** Map 1 media → mảng cho FE (kèm URL công khai). */
+    protected function transformMedia($m): array
+    {
+        return [
+            'id'            => (int) $m->id,
+            'type'          => (string) $m->type,
+            'url'           => PropertyMediaService::url((string) $m->path),
+            'size'          => (int) $m->size,
+            'original_name' => (string) ($m->original_name ?? ''),
+            'sort_order'    => (int) $m->sort_order,
+        ];
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────────────────
@@ -263,6 +385,7 @@ class PropertyApi extends ApiController
             'bathrooms'        => max(0, (int) $request->input('bathrooms')),
             'floors'           => max(0, (int) $request->input('floors')),
             'direction'        => Str::clear((string) $request->input('direction')),
+            'road_type'        => Str::clear((string) $request->input('road_type')),
             'legal_status'     => in_array($legal, self::LEGAL_STATUSES, true) ? $legal : '',
             'furniture'        => in_array($furniture, self::FURNITURES, true) ? $furniture : '',
             'province_code'    => max(0, (int) $request->input('province_code')),
@@ -295,6 +418,7 @@ class PropertyApi extends ApiController
             'bathrooms'        => (int) $row->bathrooms,
             'floors'           => (int) $row->floors,
             'direction'        => (string) ($row->direction ?? ''),
+            'road_type'        => (string) ($row->road_type ?? ''),
             'legal_status'     => (string) ($row->legal_status ?? ''),
             'furniture'        => (string) ($row->furniture ?? ''),
             'province_code'    => (int) $row->province_code,

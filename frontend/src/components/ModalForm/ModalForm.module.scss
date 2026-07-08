@@ -93,6 +93,18 @@
     }
 }
 
+/* Hàng 3 cột chiếm trọn bề ngang (đặt bên trong .mform-grid-2). */
+:global(.mform-row-3) {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0 14px;
+
+    @media (max-width: 520px) {
+        grid-template-columns: 1fr;
+    }
+}
+
 /* ===== Footer ===== */
 .foot {
     display: flex;

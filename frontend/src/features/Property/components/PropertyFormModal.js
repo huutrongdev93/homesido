@@ -3,27 +3,29 @@ import {Controller, useForm} from "react-hook-form";
 import {yupResolver} from "@hookform/resolvers/yup";
 import * as Yup from "yup";
 import {ModalForm} from "~/components";
-import {InputField, SelectField, TextAreaField} from "~/components/Forms";
+import {InputField, InputPriceField, SelectField, TextAreaField} from "~/components/Forms";
 import {useGetProvincesQuery, useGetWardsQuery} from "~/reduxs/api/locationApiSlice";
 
 /**
  * Modal thêm/sửa BĐS — presentational (page sở hữu mutation/loading).
  *
  * Props: open, item (record sửa | null = thêm), loading, options {types, transactions, statuses,
- *        visibilities, legals, furnitures}, onCancel, onSubmit(data, item).
+ *        visibilities, legals, furnitures, directions, roadTypes}, onCancel, onSubmit(data, item).
  * Địa chỉ: cascade tỉnh → phường qua locationApiSlice (phường nạp theo province_code đang chọn).
+ * Giá: nhập theo đơn vị TRIỆU trên form; quy đổi ×/÷ 1.000.000 sang VNĐ khi lưu/nạp (DB lưu VNĐ).
  */
 const EMPTY = {
 	title: '', code: '', property_type: '', transaction_type: 'sale', status: 'available',
 	visibility: 'shared', price: '', area_land: '', area_usable: '',
-	bedrooms: '', bathrooms: '', floors: '', direction: '',
-	legal_status: '', furniture: '', province_code: undefined, ward_code: undefined,
+	bedrooms: '', bathrooms: '', floors: '', direction: '', road_type: '',
+	legal_status: '', furniture: '', project_id: undefined, owner_id: undefined,
+	province_code: undefined, ward_code: undefined,
 	address: '', description: '',
 };
 
 function PropertyFormModal({open, item, loading, options = {}, onCancel, onSubmit}) {
 
-	const {types = [], transactions = [], statuses = [], visibilities = [], legals = [], furnitures = []} = options;
+	const {types = [], transactions = [], statuses = [], visibilities = [], legals = [], furnitures = [], directions = [], roadTypes = [], projects = [], owners = []} = options;
 
 	const {control, handleSubmit, reset, watch, setValue, formState: {errors}} = useForm({
 		defaultValues: EMPTY,
@@ -43,15 +45,20 @@ function PropertyFormModal({open, item, loading, options = {}, onCancel, onSubmi
 			title: item.title || '', code: item.code || '',
 			property_type: item.property_type || '', transaction_type: item.transaction_type || 'sale',
 			status: item.status || 'available', visibility: item.visibility || 'shared',
-			price: item.price || '', area_land: item.area_land || '', area_usable: item.area_usable || '',
+			price: item.price ? item.price / 1e6 : '', area_land: item.area_land || '', area_usable: item.area_usable || '',
 			bedrooms: item.bedrooms || '', bathrooms: item.bathrooms || '', floors: item.floors || '',
-			direction: item.direction || '', legal_status: item.legal_status || '', furniture: item.furniture || '',
+			direction: item.direction || '', road_type: item.road_type || '',
+			legal_status: item.legal_status || '', furniture: item.furniture || '',
+			project_id: item.project_id || undefined, owner_id: item.owner_id || undefined,
 			province_code: item.province_code || undefined, ward_code: item.ward_code || undefined,
 			address: item.address || '', description: item.description || '',
 		} : EMPTY);
 	}, [open, item, reset]);
 
-	const submit = handleSubmit((data) => onSubmit(data, item));
+	const submit = handleSubmit((data) => onSubmit({
+		...data,
+		price: data.price ? Number(data.price) * 1e6 : '',   // triệu → VNĐ (DB lưu VNĐ)
+	}, item));
 
 	return (
 		<ModalForm
@@ -76,41 +83,56 @@ function PropertyFormModal({open, item, loading, options = {}, onCancel, onSubmi
 				<Controller control={control} name="property_type" render={({field}) => (
 					<SelectField label="Loại hình" allowClear options={types} errors={errors} {...field} />
 				)} />
-				<Controller control={control} name="transaction_type" render={({field}) => (
-					<SelectField label="Hình thức" options={transactions} errors={errors} {...field} />
-				)} />
-				<Controller control={control} name="status" render={({field}) => (
-					<SelectField label="Trạng thái" options={statuses} errors={errors} {...field} />
-				)} />
-				<Controller control={control} name="price" render={({field}) => (
-					<InputField label="Giá (VNĐ)" placeholder="VD: 3500000000" errors={errors} {...field} />
-				)} />
-				<Controller control={control} name="visibility" render={({field}) => (
-					<SelectField label="Phạm vi" options={visibilities} errors={errors} {...field} />
-				)} />
-				<Controller control={control} name="area_land" render={({field}) => (
-					<InputField label="Diện tích đất (m²)" errors={errors} {...field} />
-				)} />
-				<Controller control={control} name="area_usable" render={({field}) => (
-					<InputField label="Diện tích sử dụng (m²)" errors={errors} {...field} />
-				)} />
-				<Controller control={control} name="bedrooms" render={({field}) => (
-					<InputField label="Phòng ngủ" errors={errors} {...field} />
-				)} />
-				<Controller control={control} name="bathrooms" render={({field}) => (
-					<InputField label="Phòng tắm" errors={errors} {...field} />
-				)} />
-				<Controller control={control} name="floors" render={({field}) => (
-					<InputField label="Số tầng" errors={errors} {...field} />
-				)} />
+				<div className="mform-row-3">
+					<Controller control={control} name="transaction_type" render={({field}) => (
+						<SelectField label="Hình thức" options={transactions} errors={errors} {...field} />
+					)} />
+					<Controller control={control} name="status" render={({field}) => (
+						<SelectField label="Trạng thái" options={statuses} errors={errors} {...field} />
+					)} />
+					<Controller control={control} name="visibility" render={({field}) => (
+						<SelectField label="Phạm vi" options={visibilities} errors={errors} {...field} />
+					)} />
+				</div>
+				<div className="mform-row-3">
+					<Controller control={control} name="price" render={({field}) => (
+						<InputPriceField label="Giá (triệu)" placeholder="VD: 3500" min={0} errors={errors} {...field} />
+					)} />
+					<Controller control={control} name="area_land" render={({field}) => (
+						<InputField label="Diện tích đất (m²)" errors={errors} {...field} />
+					)} />
+					<Controller control={control} name="area_usable" render={({field}) => (
+						<InputField label="Diện tích sử dụng (m²)" errors={errors} {...field} />
+					)} />
+				</div>
+				<div className="mform-row-3">
+					<Controller control={control} name="bedrooms" render={({field}) => (
+						<InputField label="Phòng ngủ" errors={errors} {...field} />
+					)} />
+					<Controller control={control} name="bathrooms" render={({field}) => (
+						<InputField label="Phòng tắm" errors={errors} {...field} />
+					)} />
+					<Controller control={control} name="floors" render={({field}) => (
+						<InputField label="Số tầng" errors={errors} {...field} />
+					)} />
+				</div>
 				<Controller control={control} name="direction" render={({field}) => (
-					<InputField label="Hướng" placeholder="VD: Đông Nam" errors={errors} {...field} />
+					<SelectField label="Hướng" allowClear options={directions} errors={errors} {...field} />
+				)} />
+				<Controller control={control} name="road_type" render={({field}) => (
+					<SelectField label="Đường vào" allowClear options={roadTypes} errors={errors} {...field} />
 				)} />
 				<Controller control={control} name="legal_status" render={({field}) => (
 					<SelectField label="Pháp lý" allowClear options={legals} errors={errors} {...field} />
 				)} />
 				<Controller control={control} name="furniture" render={({field}) => (
 					<SelectField label="Nội thất" allowClear options={furnitures} errors={errors} {...field} />
+				)} />
+				<Controller control={control} name="project_id" render={({field}) => (
+					<SelectField label="Dự án" allowClear options={projects} errors={errors} {...field} />
+				)} />
+				<Controller control={control} name="owner_id" render={({field}) => (
+					<SelectField label="Chủ nhà" allowClear options={owners} errors={errors} {...field} />
 				)} />
 				<Controller control={control} name="province_code" render={({field}) => (
 					<SelectField label="Tỉnh / Thành" allowClear options={provinces} errors={errors}

@@ -74,12 +74,21 @@ Route::namespace('App\Controllers\Api')
     {
         Route::get('', 'CustomerApi@index')->name('api.customer.index');
         Route::post('', 'CustomerApi@add')->name('api.customer.add');
+        // Danh sách nhân viên nhận bàn giao (đặt TRƯỚC /{id} để không bị nuốt bởi route param).
+        Route::get('/users', 'CustomerApi@assignableUsers')->name('api.customer.users');
         Route::get('/{id}', 'CustomerApi@detail')->name('api.customer.detail');
         Route::put('/{id}', 'CustomerApi@update')->name('api.customer.update');
         Route::delete('/{id}', 'CustomerApi@destroy')->name('api.customer.destroy');
+        // Bàn giao / thu hồi khách (cap customer_transfer).
+        Route::post('/{id}/transfer', 'CustomerApi@transfer')->name('api.customer.transfer');
         // Timeline tương tác của khách.
         Route::get('/{id}/interactions', 'CustomerApi@interactions')->name('api.customer.interactions');
         Route::post('/{id}/interactions', 'CustomerApi@addInteraction')->name('api.customer.interactions.add');
+        // Nhu cầu / tiêu chí của khách (cho Matching GĐ2).
+        Route::get('/{id}/demands', 'CustomerApi@demands')->name('api.customer.demands');
+        Route::post('/{id}/demands', 'CustomerApi@addDemand')->name('api.customer.demands.add');
+        Route::put('/{id}/demands/{demandId}', 'CustomerApi@updateDemand')->name('api.customer.demands.update');
+        Route::delete('/{id}/demands/{demandId}', 'CustomerApi@destroyDemand')->name('api.customer.demands.destroy');
     });
 
 /**
@@ -114,6 +123,62 @@ Route::namespace('App\Controllers\Api')
         Route::get('/{id}', 'PropertyApi@detail')->name('api.property.detail');
         Route::put('/{id}', 'PropertyApi@update')->name('api.property.update');
         Route::delete('/{id}', 'PropertyApi@destroy')->name('api.property.destroy');
+        // Media (ảnh/video) của BĐS.
+        Route::get('/{id}/media', 'PropertyApi@mediaIndex')->name('api.property.media.index');
+        Route::post('/{id}/media', 'PropertyApi@mediaUpload')->name('api.property.media.upload');
+        Route::put('/{id}/media/reorder', 'PropertyApi@mediaReorder')->name('api.property.media.reorder');
+        Route::delete('/{id}/media/{mediaId}', 'PropertyApi@mediaDelete')->name('api.property.media.delete');
+    });
+
+/**
+|--------------------------------------------------------------------------
+| Dashboard tổng hợp (trang chủ) — cần JWT token; gate cap customer_view
+|--------------------------------------------------------------------------
+*/
+Route::namespace('App\Controllers\Api')
+    ->middleware('jwt')
+    ->prefix('api/dashboard')
+    ->group(function ()
+    {
+        Route::get('', 'DashboardApi@index')->name('api.dashboard.index');
+    });
+
+/**
+|--------------------------------------------------------------------------
+| Danh mục phụ (cấu hình) — cần JWT; đọc mở cho view cap (nạp dropdown ở form),
+| ghi (thêm/sửa/xóa) gate cap `permission` (admin) trong controller.
+|--------------------------------------------------------------------------
+*/
+Route::namespace('App\Controllers\Api')
+    ->middleware('jwt')
+    ->group(function ()
+    {
+        // Nguồn khách (form Khách hàng)
+        Route::get('api/lead-source', 'LeadSourceApi@index')->name('api.leadSource.index');
+        Route::post('api/lead-source', 'LeadSourceApi@add')->name('api.leadSource.add');
+        Route::put('api/lead-source/{id}', 'LeadSourceApi@update')->name('api.leadSource.update');
+        Route::delete('api/lead-source/{id}', 'LeadSourceApi@destroy')->name('api.leadSource.destroy');
+
+        // Dự án (form Bất động sản)
+        Route::get('api/project', 'ProjectApi@index')->name('api.project.index');
+        Route::post('api/project', 'ProjectApi@add')->name('api.project.add');
+        Route::put('api/project/{id}', 'ProjectApi@update')->name('api.project.update');
+        Route::delete('api/project/{id}', 'ProjectApi@destroy')->name('api.project.destroy');
+
+        // Chủ nhà (form Bất động sản)
+        Route::get('api/property-owner', 'PropertyOwnerApi@index')->name('api.propertyOwner.index');
+        Route::post('api/property-owner', 'PropertyOwnerApi@add')->name('api.propertyOwner.add');
+        Route::put('api/property-owner/{id}', 'PropertyOwnerApi@update')->name('api.propertyOwner.update');
+        Route::delete('api/property-owner/{id}', 'PropertyOwnerApi@destroy')->name('api.propertyOwner.destroy');
+
+        // Kịch bản chăm sóc (form Chăm sóc)
+        Route::get('api/care-template', 'CareTemplateApi@index')->name('api.careTemplate.index');
+        Route::post('api/care-template', 'CareTemplateApi@add')->name('api.careTemplate.add');
+        Route::put('api/care-template/{id}', 'CareTemplateApi@update')->name('api.careTemplate.update');
+        Route::delete('api/care-template/{id}', 'CareTemplateApi@destroy')->name('api.careTemplate.destroy');
+
+        // Dung lượng lưu trữ của user hiện tại (gói theo dung lượng).
+        Route::get('api/storage', 'StorageApi@index')->name('api.storage.index');
     });
 
 /**

@@ -1,23 +1,38 @@
-import {useEffect} from "react";
+import {useEffect, useMemo} from "react";
 import {Controller, useForm} from "react-hook-form";
 import dayjs from "dayjs";
 import {ModalForm} from "~/components";
 import {SelectField, DateField, TextAreaField, CheckBoxField} from "~/components/Forms";
 
+const CARE_TYPES_SET = ['call', 'sms', 'zalo', 'email', 'meeting'];
+const applyTemplate = (content, customerName) => (content || '').replaceAll('{{ten_khach}}', customerName || 'quý khách');
+
 /**
  * Modal hoàn thành 1 lịch chăm: ghi kết quả (→ tạo tương tác timeline) + tuỳ chọn đặt lịch tiếp.
- * Props: open, care, loading, careTypes, onCancel, onSubmit(data).
+ * Props: open, care, loading, careTypes, careTemplates (raw), customerName, onCancel, onSubmit(data).
  */
-function CareCompleteModal({open, care, loading, careTypes = [], onCancel, onSubmit}) {
+function CareCompleteModal({open, care, loading, careTypes = [], careTemplates = [], customerName = '', onCancel, onSubmit}) {
 
-	const {control, handleSubmit, reset, watch, formState: {errors}} = useForm({
-		defaultValues: {result_note: '', schedule_next: false, next_type: 'call', next_scheduled_at: null, next_content: ''},
+	const templateOptions = useMemo(() => careTemplates
+		.filter((t) => t.is_active)
+		.map((t) => ({value: t.id, label: t.name})), [careTemplates]);
+
+	const {control, handleSubmit, reset, watch, setValue, formState: {errors}} = useForm({
+		defaultValues: {result_note: '', schedule_next: false, next_template_id: undefined, next_type: 'call', next_scheduled_at: null, next_content: ''},
 	});
 
 	const scheduleNext = watch('schedule_next');
 
+	const onPickTemplate = (id, onChange) => {
+		onChange(id);
+		const tpl = careTemplates.find((t) => t.id === id);
+		if (!tpl) return;
+		setValue('next_content', applyTemplate(tpl.content, customerName));
+		if (CARE_TYPES_SET.includes(tpl.channel)) setValue('next_type', tpl.channel);
+	};
+
 	useEffect(() => {
-		if (open) reset({result_note: '', schedule_next: false, next_type: care?.type || 'call', next_scheduled_at: null, next_content: ''});
+		if (open) reset({result_note: '', schedule_next: false, next_template_id: undefined, next_type: care?.type || 'call', next_scheduled_at: null, next_content: ''});
 	}, [open, care, reset]);
 
 	const submit = handleSubmit((data) => {
@@ -53,14 +68,26 @@ function CareCompleteModal({open, care, loading, careTypes = [], onCancel, onSub
 			)} />
 
 			{scheduleNext && (
-				<div className="mform-grid-2">
-					<Controller control={control} name="next_type" render={({field}) => (
-						<SelectField label="Hình thức" options={careTypes} errors={errors} {...field} />
+				<>
+					{templateOptions.length > 0 && (
+						<Controller control={control} name="next_template_id" render={({field}) => (
+							<SelectField label="Kịch bản (tuỳ chọn)" placeholder="Chọn để điền sẵn nội dung" allowClear
+								options={templateOptions} errors={errors}
+								{...field} onChange={(v) => onPickTemplate(v, field.onChange)} />
+						)} />
+					)}
+					<div className="mform-grid-2">
+						<Controller control={control} name="next_type" render={({field}) => (
+							<SelectField label="Hình thức" options={careTypes} errors={errors} {...field} />
+						)} />
+						<Controller control={control} name="next_scheduled_at" render={({field}) => (
+							<DateField label="Thời điểm" showTime errors={errors} {...field} />
+						)} />
+					</div>
+					<Controller control={control} name="next_content" render={({field}) => (
+						<TextAreaField label="Nội dung lịch tiếp" rows={2} errors={errors} {...field} />
 					)} />
-					<Controller control={control} name="next_scheduled_at" render={({field}) => (
-						<DateField label="Thời điểm" showTime errors={errors} {...field} />
-					)} />
-				</div>
+				</>
 			)}
 		</ModalForm>
 	);

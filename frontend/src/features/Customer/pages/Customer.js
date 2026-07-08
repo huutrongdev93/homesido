@@ -11,6 +11,7 @@ import {
 	useUpdateCustomerMutation,
 	useDeleteCustomerMutation,
 } from "~/reduxs/api/customerApiSlice";
+import {useGetLeadSourcesQuery} from "~/reduxs/api/catalogApiSlice";
 import CustomerFormModal from "../components/CustomerFormModal";
 import CustomerDetailDrawer from "../components/CustomerDetailDrawer";
 import style from "../style/Customer.module.scss";
@@ -56,6 +57,12 @@ function Customer() {
 	}), [page, pageSize, debouncedKeyword, stage]);
 
 	const {data = {items: [], total: 0}, isFetching, refetch} = useGetCustomersQuery(params);
+
+	// Nguồn khách (danh mục) cho select trong form. Chỉ nạp active để không rối dropdown.
+	const {data: leadSourceRows = []} = useGetLeadSourcesQuery();
+	const leadSources = useMemo(() => leadSourceRows
+		.filter((s) => s.is_active)
+		.map((s) => ({value: s.id, label: s.name})), [leadSourceRows]);
 
 	const [addCustomer, {isLoading: adding}] = useAddCustomerMutation();
 	const [updateCustomer, {isLoading: updating}] = useUpdateCustomerMutation();
@@ -188,6 +195,7 @@ function Customer() {
 				</button>
 			</div>
 
+			<div className="app-card">
 			<Table
 				rowKey="id"
 				columns={columns}
@@ -206,12 +214,13 @@ function Customer() {
 					},
 				}}
 			/>
+			</div>
 
 			<CustomerFormModal
 				open={openModal.addEdit}
 				item={itemEdit}
 				loading={adding || updating}
-				options={{genders, stages, temperatures}}
+				options={{genders, stages, temperatures, leadSources}}
 				onCancel={events.close}
 				onSubmit={events.save}
 			/>

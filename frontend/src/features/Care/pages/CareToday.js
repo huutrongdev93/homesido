@@ -77,6 +77,7 @@ function CareToday() {
 				}
 			/>
 
+			<div className="app-card">
 			<Table
 				rowKey="id"
 				columns={columns}
@@ -86,6 +87,7 @@ function CareToday() {
 				pagination={false}
 				locale={{emptyText: 'Tuyệt vời! Không có việc chăm sóc nào đến hạn.'}}
 			/>
+			</div>
 
 			<CareCompleteModal
 				open={!!openComplete}

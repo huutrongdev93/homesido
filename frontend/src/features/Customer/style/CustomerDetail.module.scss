@@ -94,6 +94,51 @@
 	}
 }
 
+.demandItem {
+	border: 1px solid var(--border-color);
+	border-radius: 10px;
+	padding: 10px 12px;
+	margin-bottom: 8px;
+
+	.demandMain {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		flex-wrap: wrap;
+	}
+
+	.demandType {
+		font-weight: 600;
+	}
+
+	.demandCriteria {
+		margin: 6px 0 0;
+		font-size: 13px;
+		color: var(--text-muted);
+		line-height: 1.6;
+	}
+
+	.careActions {
+		margin-top: 8px;
+		display: flex;
+		gap: 14px;
+
+		button {
+			border: none;
+			background: none;
+			padding: 0;
+			cursor: pointer;
+			font-size: 13px;
+			font-weight: 600;
+			color: var(--primary, #2563eb);
+		}
+
+		.linkDanger {
+			color: #ef4444;
+		}
+	}
+}
+
 .timeline {
 	list-style: none;
 	margin: 0;

@@ -225,11 +225,17 @@ Index: `(phone)`, `(assigned_user_id, pipeline_stage)`.
 `id` · `full_name` · `phone`(20, index) · `email` · `note` · `created` · `updated`.
 
 ### `properties` — Bất động sản (kho hàng)
-`id` · `project_id` · `owner_id` · `code`(50, index) · `title` · `property_type` string · `transaction_type` enum(sale,rent) · `price` decimal(15,2) default 0 · `price_per_m2`/`area_land`/`area_usable`/`latitude`/`longitude` decimal default 0 · `bedrooms`/`bathrooms`/`floors` tinyint(0=trống) · `direction` · `legal_status` string(red_book/pink_book/sale_contract/waiting/other, ''=chưa chọn) · `furniture` string(none/basic/full, ''=chưa chọn) · `province_code`/`ward_code` int · `address` · `description` longtext · `visibility` enum(private,shared) · `status` enum(available,deposited,sold,rented,inactive) · `assigned_user_id` · `trash` · `user_created` · `created` · `updated`.
+`id` · `project_id` · `owner_id` · `code`(50, index) · `title` · `property_type` string · `transaction_type` enum(sale,rent) · `price` decimal(15,2) default 0 · `price_per_m2`/`area_land`/`area_usable`/`latitude`/`longitude` decimal default 0 · `bedrooms`/`bathrooms`/`floors` tinyint(0=trống) · `direction` string(east/west/... enum `directions` ở api/utils, ''=chưa chọn) · **`road_type`** varchar(20) (vị trí/đường vào: frontage/car_alley/bike_alley/walk_alley, enum `road_types` ở api/utils, ''=chưa chọn) · `legal_status` string(red_book/pink_book/sale_contract/waiting/other, ''=chưa chọn) · `furniture` string(none/basic/full, ''=chưa chọn) · `province_code`/`ward_code` int · `address` · `description` longtext · `visibility` enum(private,shared) · `status` enum(available,deposited,sold,rented,inactive) · `assigned_user_id` · `trash` · `user_created` · `created` · `updated`.
 Index: `(code)`, `(assigned_user_id)`, `(status)`, `(property_type, transaction_type)`, `(province_code, ward_code)`, `(price)`.
+> `road_type` thêm ở migration `database/property.php` (đăng ký sau `media.php`) — guard `hasColumn`, idempotent. Giá (`price`) lưu **VNĐ**; form BĐS nhập theo **triệu** (quy đổi ×/÷ 1e6).
 
 ### `property_media` — Ảnh / video / tài liệu
-`id` · `property_id` (index) · `type` enum(image,video,document) · `path` · `sort_order` int · `created`.
+`id` · `property_id` (index) · `type` enum(image,video,document) · `path` (tương đối dưới `uploads/`, vd `properties/<hash>.jpg`) · `sort_order` int · `created` · **`size`** bigint (byte — kế toán dung lượng) · **`user_id`** bigint index (người upload — dung lượng tính theo user) · **`mime_type`** varchar(100) · **`original_name`** varchar(255).
+> 4 cột `size`/`user_id`/`mime_type`/`original_name` thêm ở migration `database/media.php` (đăng ký sau `crm.php`). File lưu tại `backend/storage/uploads/properties/`, phục vụ qua đường ảo `/uploads/...` (.htaccess). Xem [`features/media.md`](features/media.md).
+
+> **Kế toán dung lượng (không phải bảng riêng)**: tổng byte đã dùng của **mỗi user** lưu ở
+> `users_metadata` key **`storage_used_bytes`** (qua `User::updateMeta`/`getMeta`). Mọi upload cộng,
+> mọi xóa/purge trừ — theo `property_media.user_id`. Phục vụ bán gói theo dung lượng.
 
 ### `customer_interactions` — Timeline tương tác
 `id` · `customer_id` (index) · `user_id` (người thực hiện) · `type` enum(call,sms,zalo,email,meeting,note,viewing) · `content` · `direction` string(in/out, ''=không rõ) · `interacted_at` · `created`.

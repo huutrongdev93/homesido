@@ -41,6 +41,8 @@ Media BĐS + Dung lượng
        ├─ app/Services/Storage/StorageMeter.php               # used/add/subtract/quota/wouldExceed (user meta storage_used_bytes)
        ├─ app/Models/PropertyMedia.php
        ├─ database/media.php                                  # +cột size/user_id/mime_type/original_name (đăng ký sau crm.php)
+       ├─ database/property-media-audio.php                   # ALTER enum property_media.type +'audio' (idempotent, sau media.php)
+       ├─ .htaccess                                           # php_value post_max_size/upload_max_filesize (nâng giới hạn upload)
        └─ lưu file: backend/storage/uploads/properties/<hash>.<ext>  (phục vụ qua /uploads/... — .htaccess map)
 ```
 
@@ -52,12 +54,19 @@ Media BĐS + Dung lượng
   `DELETE api/property/{id}/media/{mediaId}`, `DELETE api/property/{id}?force=1` (xóa hẳn + purge),
   `GET api/storage`.
 - **Env**: `MEDIA_MAX_IMAGE_MB` (mặc định 10), `MEDIA_MAX_VIDEO_MB` (mặc định 100),
-  `STORAGE_QUOTA_MB_PER_USER` (mặc định 0 = không giới hạn) — có default trong code.
+  `MEDIA_MAX_AUDIO_MB` (mặc định 50), `STORAGE_QUOTA_MB_PER_USER` (mặc định 0 = không giới hạn) — có
+  default trong code.
+- **Giới hạn PHP (QUAN TRỌNG)**: `MEDIA_MAX_*` chỉ là kiểm tra ở tầng app — file còn phải lọt qua
+  `post_max_size`/`upload_max_filesize` của PHP TRƯỚC (mặc định WAMP 8M/2M → video/audio bị chặn với
+  `PostTooLargeException` hoặc `isValid()=false`). Đã nâng trong `backend/.htaccess` (`<IfModule
+  mod_php.c>`: upload 100M / post 120M / max_execution_time 300); nếu Apache chạy FastCGI thì sửa
+  `php.ini` + restart.
 
 ## Luồng
 
 - **Upload** (`POST .../media`, field `files[]`, multipart): mỗi file → `PropertyMediaService::store`:
-  validate đuôi (image: jpg/jpeg/png/webp/gif; video: mp4/webm/mov/m4v) + dung lượng tối đa + hạn mức
+  validate đuôi (image: jpg/jpeg/png/webp/gif; video: mp4/webm/mov/m4v; audio: mp3/wav/m4a/aac/ogg) +
+  dung lượng tối đa + hạn mức
   user → `Str::random(32).ext` → `move` vào `storage/uploads/properties/` → insert row (size, user_id,
   mime, original_name, sort_order kế tiếp) → `StorageMeter::add(uploader, size)`. Gom lỗi từng file
   (`saved` + `errors[]`); cả lô fail mới trả 422.

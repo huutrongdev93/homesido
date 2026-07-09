@@ -120,16 +120,16 @@ function PropertyMediaModal({open, property, canEdit, onClose}) {
 				<div className={style.mediaUpload}>
 					<button type="button" className={style.uploadBtn} onClick={pick} disabled={uploading}>
 						{uploading ? <Spin size="small" /> : <FontAwesomeIcon icon="fa-light fa-cloud-arrow-up" />}
-						<span>{uploading ? 'Đang tải lên...' : 'Tải ảnh / video lên'}</span>
+						<span>{uploading ? 'Đang tải lên...' : 'Tải ảnh / video / âm thanh lên'}</span>
 					</button>
-					<input ref={inputRef} type="file" multiple accept="image/*,video/*" onChange={onFiles} style={{display: 'none'}} />
+					<input ref={inputRef} type="file" multiple accept="image/*,video/*,audio/*" onChange={onFiles} style={{display: 'none'}} />
 				</div>
 			)}
 
 			{isFetching ? (
 				<div className={style.mediaLoading}><Spin /></div>
 			) : media.length === 0 ? (
-				<div className={style.mediaEmpty}>Chưa có ảnh/video nào</div>
+				<div className={style.mediaEmpty}>Chưa có tệp nào</div>
 			) : (
 				<div className={style.mediaGrid}>
 					{media.map((m, i) => (
@@ -139,8 +139,11 @@ function PropertyMediaModal({open, property, canEdit, onClose}) {
 									? <img src={m.url} alt="" />
 									: m.type === 'video'
 										? <video src={m.url} muted />
-										: <FontAwesomeIcon icon="fa-light fa-file" />}
+										: m.type === 'audio'
+											? <FontAwesomeIcon icon="fa-light fa-music" />
+											: <FontAwesomeIcon icon="fa-light fa-file" />}
 								{m.type === 'video' && <span className={style.playBadge}><FontAwesomeIcon icon="fa-solid fa-play" /></span>}
+								{m.type === 'audio' && <span className={style.playBadge}><FontAwesomeIcon icon="fa-solid fa-music" /></span>}
 								{m.is_cover && (
 									<span className={style.coverBadge}><FontAwesomeIcon icon="fa-solid fa-star" /> Đại diện</span>
 								)}

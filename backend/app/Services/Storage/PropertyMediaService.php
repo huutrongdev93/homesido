@@ -20,6 +20,7 @@ class PropertyMediaService
 
     const IMAGE_EXT = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
     const VIDEO_EXT = ['mp4', 'webm', 'mov', 'm4v'];
+    const AUDIO_EXT = ['mp3', 'wav', 'm4a', 'aac', 'ogg'];
 
     /** Dung lượng tối đa mỗi file theo loại (byte); env override tính bằng MB. */
     public static function maxBytes(string $type): int
@@ -29,10 +30,15 @@ class PropertyMediaService
             return ((int) env('MEDIA_MAX_VIDEO_MB', 100)) * 1024 * 1024;
         }
 
+        if ($type === 'audio')
+        {
+            return ((int) env('MEDIA_MAX_AUDIO_MB', 50)) * 1024 * 1024;
+        }
+
         return ((int) env('MEDIA_MAX_IMAGE_MB', 10)) * 1024 * 1024;
     }
 
-    /** Phân loại theo đuôi file → 'image'|'video', null nếu không hỗ trợ. */
+    /** Phân loại theo đuôi file → 'image'|'video'|'audio', null nếu không hỗ trợ. */
     public static function classify(string $ext): ?string
     {
         $ext = strtolower($ext);
@@ -45,6 +51,11 @@ class PropertyMediaService
         if (in_array($ext, self::VIDEO_EXT, true))
         {
             return 'video';
+        }
+
+        if (in_array($ext, self::AUDIO_EXT, true))
+        {
+            return 'audio';
         }
 
         return null;

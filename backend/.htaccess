@@ -1,3 +1,16 @@
+# ===============================
+# Giới hạn upload (ảnh/video/âm thanh BĐS)
+# Khớp với MEDIA_MAX_VIDEO_MB (mặc định 100MB). Nếu Apache chạy PHP dạng
+# CGI/FastCGI (không phải mod_php) thì các dòng này bị bỏ qua — khi đó nâng
+# `upload_max_filesize`/`post_max_size` trong php.ini rồi restart Apache.
+# ===============================
+<IfModule mod_php.c>
+    php_value upload_max_filesize 100M
+    php_value post_max_size 120M
+    php_value max_execution_time 300
+    php_value max_input_time 300
+</IfModule>
+
 <IfModule mod_rewrite.c>
     RewriteEngine On
 

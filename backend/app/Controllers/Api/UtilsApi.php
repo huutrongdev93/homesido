@@ -232,6 +232,7 @@ class UtilsApi extends Controller
             'database/crm.php',
             'database/care-sequence.php',
             'database/media.php',
+            'database/property-media-audio.php',
             'database/property.php',
             'database/property-unique-code.php',
             'database/matching.php',

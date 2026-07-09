@@ -234,8 +234,8 @@ Index: `(code)`, `(assigned_user_id)`, `(status)`, `(property_type, transaction_
 > `match_scanned` (cả `properties` + `customer_demands`) thêm ở migration `database/matching-scan.php` (đăng ký sau `matching.php`) — guard `hasColumn`, **backfill dữ liệu cũ = 1** một lần để tick không spam hàng cũ. Xem [`features/matching.md`](features/matching.md) §Auto-matching.
 > `road_type` + `cover_media_id` thêm ở migration `database/property.php` (đăng ký sau `media.php`) — guard `hasColumn`, idempotent. Giá (`price`) lưu **VNĐ**; form BĐS nhập theo **triệu** (quy đổi ×/÷ 1e6). Ảnh đại diện: `cover_media_id>0` (ảnh đã chọn) else ảnh đầu tiên theo `sort_order` — BE giải sẵn field `thumbnail` (URL) cho list/detail; xóa đúng cover → reset về 0.
 
-### `property_media` — Ảnh / video / tài liệu
-`id` · `property_id` (index) · `type` enum(image,video,document) · `path` (tương đối dưới `uploads/`, vd `properties/<hash>.jpg`) · `sort_order` int · `created` · **`size`** bigint (byte — kế toán dung lượng) · **`user_id`** bigint index (người upload — dung lượng tính theo user) · **`mime_type`** varchar(100) · **`original_name`** varchar(255).
+### `property_media` — Ảnh / video / âm thanh / tài liệu
+`id` · `property_id` (index) · `type` enum(image,video,audio,document) · `path` (tương đối dưới `uploads/`, vd `properties/<hash>.jpg`) · `sort_order` int · `created` · **`size`** bigint (byte — kế toán dung lượng) · **`user_id`** bigint index (người upload — dung lượng tính theo user) · **`mime_type`** varchar(100) · **`original_name`** varchar(255).
 > 4 cột `size`/`user_id`/`mime_type`/`original_name` thêm ở migration `database/media.php` (đăng ký sau `crm.php`). File lưu tại `backend/storage/uploads/properties/`, phục vụ qua đường ảo `/uploads/...` (.htaccess). Xem [`features/media.md`](features/media.md).
 
 > **Kế toán dung lượng (không phải bảng riêng)**: tổng byte đã dùng của **mỗi user** lưu ở

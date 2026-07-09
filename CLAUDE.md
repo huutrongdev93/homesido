@@ -138,6 +138,7 @@ Khi quét source để hiểu một chức năng, **ghi lại vào `docs/feature
 > - **Ưu tiên giao subagent** (`Explore`/`general-purpose`) để quét source & dựng note — đỡ tốn token context chính (agent giữ file dump, chỉ trả về nội dung doc) và note chất lượng hơn.
 
 ### Feature notes index
+- [Thông báo & Web Push](docs/features/notification.md) — in-app (chuông) + đẩy Web Push (VAPID + aes128gcm tự triển khai) qua `Notifier::send`→`PushQueue`→tick `push-tick`→`WebPushClient`; gotcha Windows/WAMP (`openssl_pkey_new` cần dò `openssl.cnf`) + WNS/Edge 401 lệch khoá VAPID (403/401-WNS → xoá subscription để đăng ký lại).
 - [Khách hàng (Customer — Core CRM)](docs/features/customer.md) — CRUD + filter/phân trang + chống trùng SĐT + data-scope + xóa mềm; vertical slice xác lập khuôn CRUD (ApiController base, RTK Query, caps).
 - [Bất động sản (Property — Kho hàng)](docs/features/property.md) — CRUD + data-scope kho chung (shared) + địa chỉ tỉnh→phường (LocationApi) + xóa mềm; media chờ pipeline upload.
 - [Trang công khai BĐS (Public Listing)](docs/features/public-listing.md) — link `/p/{code}` gửi khách xem KHÔNG cần đăng nhập (`GET api/public/property/{code}`, ngoài jwt): gallery + đặc điểm + mô tả + bản đồ + liên hệ NV (Gọi/Zalo) + BĐS liên quan; chỉ trả field tiếp thị, không lộ dữ liệu nội bộ; nút "Copy link công khai" ở panel BĐS. Không cột/cap mới.

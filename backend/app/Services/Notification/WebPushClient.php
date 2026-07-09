@@ -94,6 +94,28 @@ class WebPushClient
                 return ['ok' => false, 'gone' => true, 'retry' => false, 'message' => 'Subscription hết hạn (' . $status . ')'];
             }
 
+            // 403: push service từ chối khoá VAPID cho RIÊNG subscription này (RFC 8292) —
+            // thường do thiết bị đăng ký bằng applicationServerKey khác khoá server hiện tại
+            // (khoá VAPID đã đổi). Subscription hỏng vĩnh viễn → xoá để thiết bị đăng ký lại.
+            if ($status === 403)
+            {
+                return ['ok' => false, 'gone' => true, 'retry' => false, 'message' => 'Khoá VAPID không khớp subscription (403)'];
+            }
+
+            // 401: WNS (Edge/Windows) dùng mã này khi khoá ký JWT không khớp khoá đã bind vào
+            // channel lúc subscribe (X-WNS-ERROR-DESCRIPTION nói rõ "public key ... channel Url").
+            // Đây là subscription lệch khoá → xoá. 401 KHÁC (không kèm dấu hiệu này) có thể là
+            // cấu hình VAPID sai toàn cục → cho retry, KHÔNG xoá hàng loạt subscription tốt.
+            if ($status === 401)
+            {
+                $wnsError = (string) $response->header('X-WNS-ERROR-DESCRIPTION');
+
+                if (stripos($wnsError, 'public key') !== false || stripos($wnsError, 'channel') !== false)
+                {
+                    return ['ok' => false, 'gone' => true, 'retry' => false, 'message' => 'Khoá VAPID không khớp channel (401 WNS)'];
+                }
+            }
+
             // 429/5xx: lỗi tạm thời phía push service — cho retry.
             $retry = $status === 429 || $status >= 500;
 
@@ -173,10 +195,7 @@ class WebPushClient
         }
 
         // Cặp khoá tạm (ephemeral) cho riêng lần gửi này.
-        $asKey = openssl_pkey_new([
-            'curve_name'       => 'prime256v1',
-            'private_key_type' => OPENSSL_KEYTYPE_EC,
-        ]);
+        $asKey = openssl_pkey_new(self::ecKeyArgs());
 
         if ($asKey === false)
         {
@@ -239,6 +258,112 @@ class WebPushClient
         $decoded = base64_decode(strtr($data, '-_', '+/'), false);
 
         return $decoded === false ? '' : $decoded;
+    }
+
+    /** Args đã dò cho openssl_pkey_new (cache theo tiến trình — dò 1 lần). */
+    protected static ?array $ecKeyArgs = null;
+
+    /**
+     * Tham số tạo khoá EC P-256 ephemeral cho openssl_pkey_new.
+     *
+     * Trên Linux, openssl_pkey_new chạy được ngay (không cần chỉ 'config'). Trên
+     * Windows/WAMP, PHP thường KHÔNG tìm thấy openssl.cnf (biến OPENSSL_CONF trống) nên
+     * OpenSSL 3 không nạp được provider → openssl_pkey_new trả false với lỗi khó hiểu
+     * ("BIO routines::no such file" / "system library::No such process"). Khi đó phải chỉ
+     * 'config' trỏ tới một openssl.cnf ĐẦY ĐỦ có thật thì mới tạo được khoá.
+     *
+     * Chiến lược: thử không config trước (Linux xong ngay); fail thì dò lần lượt các
+     * openssl.cnf ứng viên, XÁC THỰC bằng cách tạo thử một khoá, dùng cái đầu tiên chạy
+     * được rồi cache lại cho các lần gửi sau trong cùng tiến trình.
+     */
+    protected static function ecKeyArgs(): array
+    {
+        if (self::$ecKeyArgs !== null)
+        {
+            return self::$ecKeyArgs;
+        }
+
+        $base = ['curve_name' => 'prime256v1', 'private_key_type' => OPENSSL_KEYTYPE_EC];
+
+        if (self::canGenerate($base))
+        {
+            return self::$ecKeyArgs = $base;
+        }
+
+        foreach (self::opensslConfigCandidates() as $cnf)
+        {
+            $args = $base + ['config' => $cnf];
+
+            if (self::canGenerate($args))
+            {
+                return self::$ecKeyArgs = $args;
+            }
+        }
+
+        // Không dò được — trả $base để openssl_pkey_new ném lỗi rõ ràng ở chỗ gọi.
+        return self::$ecKeyArgs = $base;
+    }
+
+    /** Thử tạo 1 khoá EC với $args; true nếu OpenSSL sinh được. Dọn sạch error queue. */
+    protected static function canGenerate(array $args): bool
+    {
+        $key = @openssl_pkey_new($args);
+
+        while (openssl_error_string() !== false) {} // dọn error queue để lần dò sau sạch
+
+        return $key !== false;
+    }
+
+    /**
+     * Danh sách openssl.cnf ứng viên (Windows). Ưu tiên khai báo tay trong .env, rồi biến
+     * môi trường chuẩn của OpenSSL, rồi suy từ nơi cài (layout WAMP), cuối cùng vài vị trí
+     * WAMP/XAMPP phổ biến. Chỉ trả file có thật, đã khử trùng lặp.
+     */
+    protected static function opensslConfigCandidates(): array
+    {
+        $paths = [];
+
+        // 1) Khai báo tay (tự host / môi trường lạ) — ưu tiên cao nhất.
+        $envPath = trim((string) env('OPENSSL_CONF_PATH'));
+
+        if ($envPath !== '')
+        {
+            $paths[] = $envPath;
+        }
+
+        // 2) Biến môi trường chuẩn của OpenSSL nếu đã set ở tầng OS.
+        foreach (['OPENSSL_CONF', 'SSLEAY_CONF'] as $envKey)
+        {
+            $val = getenv($envKey);
+
+            if (is_string($val) && $val !== '')
+            {
+                $paths[] = $val;
+            }
+        }
+
+        // 3) Suy từ php.ini đang nạp: WAMP xếp openssl.cnf ở php/php*/extras/ssl và
+        //    apache/apache*/conf (php.ini nằm tại .../wamp/bin/apache/apache*/bin).
+        $ini = php_ini_loaded_file();
+
+        if ($ini)
+        {
+            $binRoot = dirname($ini, 4); // .../wamp/bin
+
+            foreach ((glob($binRoot . '/php/php*/extras/ssl/openssl.cnf') ?: []) as $g) $paths[] = $g;
+            foreach ((glob($binRoot . '/apache/apache*/conf/openssl.cnf') ?: []) as $g) $paths[] = $g;
+        }
+
+        // 4) Vị trí WAMP/XAMPP phổ biến (ổ C hoặc D).
+        foreach (['C', 'D', 'E'] as $drive)
+        {
+            foreach ((glob($drive . ':/wamp*/bin/php/php*/extras/ssl/openssl.cnf') ?: []) as $g) $paths[] = $g;
+            foreach ((glob($drive . ':/wamp*/bin/apache/apache*/conf/openssl.cnf') ?: []) as $g) $paths[] = $g;
+            $paths[] = $drive . ':/xampp/apache/conf/openssl.cnf';
+            $paths[] = $drive . ':/xampp/php/extras/ssl/openssl.cnf';
+        }
+
+        return array_values(array_filter(array_unique($paths), static fn($p) => is_string($p) && $p !== '' && is_file($p)));
     }
 
     /** Cấu hình SSL (CA bundle đóng gói, tắt được qua env cho môi trường dev). */

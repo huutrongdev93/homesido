@@ -278,11 +278,18 @@ Index: `(scheduled_at, status)`, `(assigned_user_id, status)`, `(property_id)`.
 Index: `(code)`, `(customer_id)`, `(property_id)`, `(assigned_user_id, status)`, `(status)`.
 
 ### `deal_payments` — Đợt thanh toán của giao dịch
-`id` · `deal_id` (index) · `amount` decimal(15,2) default 0 (VNĐ) · `paid_at` datetime · `method` string(20) default '' (cash/transfer/card enum `payment_methods`; ''=không rõ) · `note` text · `user_created` · `created` · `updated`. Xóa cứng.
+`id` · `deal_id` (index) · `amount` decimal(15,2) default 0 (VNĐ) · `status` enum(planned,paid) **default paid** (planned=dự kiến, paid=đã thu) · `due_date` datetime (ngày đến hạn, đợt dự kiến) · `reminded_at` datetime (mốc đã nhắc — chống lặp) · `paid_at` datetime · `method` string(20) default '' (cash/transfer/card enum `payment_methods`; ''=không rõ) · `note` text · `user_created` · `created` · `updated`. Xóa cứng.
+> `status`/`due_date`/`reminded_at` thêm ở `database/deal-history.php` (guard `hasColumn`); dòng cũ default `paid` (tương thích ngược). `paid_total` chỉ tính `status=paid`.
 
 ### `commissions` — Hoa hồng của sale trên giao dịch
 `id` · `deal_id` (index; 1 dòng/giao dịch) · `user_id` (index; sale hưởng) · `rate` decimal(5,2) · `amount` decimal(15,2) (VNĐ) · `status` enum(pending,paid) · `paid_at` datetime · `note` text · `created` · `updated`.
-> 3 bảng thêm ở migration `database/deal.php` (đăng ký sau `appointment.php`) — guard `hasTable`, idempotent. Tiền lưu **VNĐ** (form nhập **triệu**, ×/÷1e6); `commission_rate` là %. Chuyển `deals.status` **tự đổi `properties.status`** (deposit/contract→deposited; completed→sold|rented; canceled→available). `commissions` đồng bộ từ deal (upsert theo `deal_id`); đánh dấu chi cần cap `commission_manage`. Xem [`features/deal.md`](features/deal.md).
+
+### `deal_reminders` — Nhắc hẹn tự do gắn giao dịch (GĐ2)
+`id` · `deal_id` (index) · `assigned_user_id` (index; mặc định = sale phụ trách deal) · `title`(255) · `remind_at` datetime (index) · `status` enum(pending,done) default pending · `reminded_at` datetime (chống lặp) · `done_at` datetime · `note` text · `user_created` · `created` · `updated`. Index phụ `(status, remind_at)`. Xóa cứng.
+
+### `deal_activities` — Nhật ký hoạt động của giao dịch (GĐ2, append-only)
+`id` · `deal_id` (index) · `type`(20) (created/status/payment/payment_plan/payment_paid/payment_delete/commission/reminder/reminder_done/update) · `title`(255) · `amount` decimal(15,2) default 0 · `note` text · `user_id` · `created`. Chỉ ghi thêm, không sửa/xóa.
+> 3 bảng gốc (`deals`/`deal_payments`/`commissions`) thêm ở `database/deal.php` (đăng ký sau `appointment.php`); `deal_reminders`/`deal_activities` + cột mới của `deal_payments` thêm ở `database/deal-history.php` (đăng ký sau `deal.php`) — guard `hasTable`/`hasColumn`, idempotent. Tiền lưu **VNĐ** (form nhập **triệu**, ×/÷1e6); `commission_rate` là %. Chuyển `deals.status` **tự đổi `properties.status`** (deposit/contract→deposited; completed→sold|rented; canceled→available). `commissions` đồng bộ từ deal (upsert theo `deal_id`); đánh dấu chi cần cap `commission_manage`. Tick `deal-reminder-tick` nhắc đợt thu dự kiến đến hạn + nhắc hẹn tự do. Xem [`features/deal.md`](features/deal.md).
 
 ## 5. Thêm bảng/cột mới (checklist)
 

@@ -181,6 +181,16 @@ class UtilsApi extends Controller
                         ['value' => 'pending', 'label' => 'Chờ chi'],
                         ['value' => 'paid',    'label' => 'Đã chi'],
                     ],
+                    // Trạng thái đợt thu (deal_payments.status): dự kiến vs đã thu.
+                    'payment_statuses' => [
+                        ['value' => 'planned', 'label' => 'Dự kiến'],
+                        ['value' => 'paid',    'label' => 'Đã thu'],
+                    ],
+                    // Trạng thái nhắc hẹn (deal_reminders.status).
+                    'reminder_statuses' => [
+                        ['value' => 'pending', 'label' => 'Chờ nhắc'],
+                        ['value' => 'done',    'label' => 'Đã xong'],
+                    ],
                 ],
             ],
         ];
@@ -239,6 +249,7 @@ class UtilsApi extends Controller
             'database/matching-scan.php',
             'database/appointment.php',
             'database/deal.php',
+            'database/deal-history.php',
         ];
 
         foreach ($migrations as $migrationFile)

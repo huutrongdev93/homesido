@@ -35,13 +35,30 @@ export const dealApiSlice = apiSlice.injectEndpoints({
 			query: (id) => ({url: `deal/${id}`, method: 'delete'}),
 			invalidatesTags: ['Deal', 'Property'],
 		}),
-		// Đợt thanh toán
+		// Đợt thanh toán (đã thu / dự kiến — payload kèm status, due_date khi dự kiến)
 		addDealPayment: builder.mutation({
 			query: ({dealId, ...data}) => ({url: `deal/${dealId}/payments`, method: 'post', data}),
 			invalidatesTags: ['Deal'],
 		}),
+		markDealPaymentPaid: builder.mutation({
+			query: ({dealId, id}) => ({url: `deal/${dealId}/payments/${id}/paid`, method: 'put'}),
+			invalidatesTags: ['Deal'],
+		}),
 		deleteDealPayment: builder.mutation({
 			query: ({dealId, id}) => ({url: `deal/${dealId}/payments/${id}`, method: 'delete'}),
+			invalidatesTags: ['Deal'],
+		}),
+		// Nhắc hẹn
+		addDealReminder: builder.mutation({
+			query: ({dealId, ...data}) => ({url: `deal/${dealId}/reminders`, method: 'post', data}),
+			invalidatesTags: ['Deal'],
+		}),
+		updateDealReminder: builder.mutation({
+			query: ({dealId, id, ...data}) => ({url: `deal/${dealId}/reminders/${id}`, method: 'put', data}),
+			invalidatesTags: ['Deal'],
+		}),
+		deleteDealReminder: builder.mutation({
+			query: ({dealId, id}) => ({url: `deal/${dealId}/reminders/${id}`, method: 'delete'}),
 			invalidatesTags: ['Deal'],
 		}),
 		// Hoa hồng (mark chi/chưa chi)
@@ -60,6 +77,10 @@ export const {
 	useChangeDealStatusMutation,
 	useDeleteDealMutation,
 	useAddDealPaymentMutation,
+	useMarkDealPaymentPaidMutation,
 	useDeleteDealPaymentMutation,
+	useAddDealReminderMutation,
+	useUpdateDealReminderMutation,
+	useDeleteDealReminderMutation,
 	useUpdateDealCommissionMutation,
 } = dealApiSlice;

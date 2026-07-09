@@ -5,7 +5,9 @@ namespace App\Controllers\Api;
 use App\Models\Commission;
 use App\Models\Customer;
 use App\Models\Deal;
+use App\Models\DealActivity;
 use App\Models\DealPayment;
+use App\Models\DealReminder;
 use App\Models\Property;
 use Illuminate\Support\Str;
 use SkillDo\Http\Request;
@@ -22,8 +24,9 @@ use SkillDo\Validate\Rule;
  */
 class DealApi extends ApiController
 {
-    const STATUSES         = ['deposit', 'contract', 'completed', 'canceled'];
-    const PAYMENT_METHODS  = ['cash', 'transfer', 'card'];
+    const STATUSES          = ['deposit', 'contract', 'completed', 'canceled'];
+    const PAYMENT_METHODS   = ['cash', 'transfer', 'card'];
+    const PAYMENT_STATUSES  = ['planned', 'paid'];
 
     // Mốc thời gian tương ứng mỗi giai đoạn (điền khi lần đầu chuyển tới).
     const STATUS_TS = [
@@ -31,6 +34,14 @@ class DealApi extends ApiController
         'contract'  => 'contract_at',
         'completed' => 'completed_at',
         'canceled'  => 'canceled_at',
+    ];
+
+    // Nhãn giai đoạn (dùng cho nhật ký hoạt động).
+    const STATUS_LABELS = [
+        'deposit'   => 'Đặt cọc',
+        'contract'  => 'Đã ký hợp đồng',
+        'completed' => 'Hoàn tất',
+        'canceled'  => 'Đã hủy',
     ];
 
     /**
@@ -93,17 +104,28 @@ class DealApi extends ApiController
         $data = $this->enrich([$deal])[0];
 
         $payments = [];
-        $paid = 0.0;
+        $paid = 0.0;      // tổng đã thu (status=paid)
+        $planned = 0.0;   // tổng dự kiến (status=planned)
         foreach (DealPayment::where('deal_id', $deal->id)->orderByDesc('id')->get() as $p)
         {
             $payments[] = $this->transformPayment($p);
-            $paid += (float) $p->amount;
+            if ((string) $p->status === 'planned')
+            {
+                $planned += (float) $p->amount;
+            }
+            else
+            {
+                $paid += (float) $p->amount;
+            }
         }
 
-        $data['payments']   = $payments;
-        $data['paid_total'] = $paid;
-        $data['remaining']  = max(0, (float) $deal->value - $paid);
-        $data['commission'] = $this->commissionOf((int) $deal->id);
+        $data['payments']      = $payments;
+        $data['paid_total']    = $paid;
+        $data['planned_total'] = $planned;
+        $data['remaining']     = max(0, (float) $deal->value - $paid);
+        $data['commission']    = $this->commissionOf((int) $deal->id);
+        $data['reminders']     = $this->remindersOf((int) $deal->id);
+        $data['activities']    = $this->activitiesOf((int) $deal->id);
 
         response()->success('success', $data);
     }
@@ -158,6 +180,8 @@ class DealApi extends ApiController
         // Sinh dòng hoa hồng cho sale phụ trách.
         $this->syncCommission((int) $id, $assignedUserId, $rate, $amount);
 
+        $this->logActivity((int) $id, 'created', 'Tạo giao dịch — đặt cọc', $value);
+
         response()->success('Đã tạo giao dịch', ['id' => (int) $id]);
     }
 
@@ -199,6 +223,8 @@ class DealApi extends ApiController
         $ownerId = $update['assigned_user_id'] ?? (int) $deal->assigned_user_id;
         $this->syncCommission((int) $deal->id, (int) $ownerId, $rate, $amount);
 
+        $this->logActivity((int) $deal->id, 'update', 'Cập nhật thông tin giao dịch', $value);
+
         response()->success('Đã cập nhật giao dịch', ['id' => (int) $deal->id]);
     }
 
@@ -236,6 +262,8 @@ class DealApi extends ApiController
 
         $this->applyPropertyStatus((int) $deal->property_id, $status, (string) $deal->transaction_type);
 
+        $this->logActivity((int) $deal->id, 'status', 'Chuyển giai đoạn: ' . (self::STATUS_LABELS[$status] ?? $status));
+
         response()->success('Đã cập nhật giai đoạn giao dịch', ['id' => (int) $deal->id, 'status' => $status]);
     }
 
@@ -259,7 +287,10 @@ class DealApi extends ApiController
 
     // ─── Sub-resource: đợt thanh toán ─────────────────────────────────────────────────
 
-    /** POST api/deal/{id}/payments — thêm 1 đợt thu tiền. */
+    /**
+     * POST api/deal/{id}/payments — thêm 1 đợt thu.
+     * `status` = paid (đã thu, mặc định) → có paid_at; = planned (dự kiến) → bắt buộc due_date.
+     */
     public function addPayment(Request $request, $id): void
     {
         $this->requireCap('deal_edit', 'Bạn không có quyền ghi thanh toán.');
@@ -272,23 +303,82 @@ class DealApi extends ApiController
             response()->setStatusCode(422)->setApiStatus(422)->error('Số tiền phải lớn hơn 0.');
         }
 
-        $method = (string) $request->input('method');
-        $paidAt = trim((string) $request->input('paid_at'));
+        $status = (string) $request->input('status');
+        if (!in_array($status, self::PAYMENT_STATUSES, true))
+        {
+            $status = 'paid';
+        }
 
-        $pid = DealPayment::create([
+        $method = (string) $request->input('method');
+        $data = [
             'deal_id' => (int) $deal->id,
             'amount'  => $amount,
-            'paid_at' => ($paidAt !== '') ? $this->normalizeDatetime($paidAt) : date('Y-m-d H:i:s'),
+            'status'  => $status,
             'method'  => in_array($method, self::PAYMENT_METHODS, true) ? $method : '',
             'note'    => Str::clear((string) $request->input('note')),
-        ]);
+        ];
+
+        if ($status === 'planned')
+        {
+            $dueDate = trim((string) $request->input('due_date'));
+            if ($dueDate === '')
+            {
+                response()->setStatusCode(422)->setApiStatus(422)->error('Vui lòng chọn ngày đến hạn cho đợt dự kiến.');
+            }
+            $data['due_date'] = $this->normalizeDatetime($dueDate);
+            $data['paid_at']  = null;
+        }
+        else
+        {
+            $paidAt = trim((string) $request->input('paid_at'));
+            $data['paid_at'] = ($paidAt !== '') ? $this->normalizeDatetime($paidAt) : date('Y-m-d H:i:s');
+        }
+
+        $pid = DealPayment::create($data);
 
         if (!is_numeric($pid))
         {
             response()->error('Ghi thanh toán thất bại.');
         }
 
+        if ($status === 'planned')
+        {
+            $this->logActivity((int) $deal->id, 'payment_plan', 'Lên kế hoạch thu', $amount, 'Hạn: ' . $data['due_date']);
+        }
+        else
+        {
+            $this->logActivity((int) $deal->id, 'payment', 'Thu tiền', $amount);
+        }
+
         response()->success('Đã ghi đợt thanh toán', ['id' => (int) $pid]);
+    }
+
+    /** PUT api/deal/{id}/payments/{paymentId}/paid — đánh dấu đợt dự kiến đã thu. */
+    public function markPaymentPaid(Request $request, $id, $paymentId): void
+    {
+        $this->requireCap('deal_edit', 'Bạn không có quyền ghi thanh toán.');
+
+        $deal = $this->findDeal((int) $id);
+
+        $payment = DealPayment::where('id', (int) $paymentId)->where('deal_id', $deal->id)->first();
+        if (!hasItems($payment))
+        {
+            response()->setStatusCode(404)->setApiStatus(404)->error('Đợt thanh toán không tồn tại.');
+        }
+
+        if ((string) $payment->status === 'paid')
+        {
+            response()->success('Đợt này đã thu', ['id' => (int) $payment->id]);
+        }
+
+        DealPayment::where('id', $payment->id)->update([
+            'status'  => 'paid',
+            'paid_at' => hasItems($payment->paid_at) ? $payment->paid_at : date('Y-m-d H:i:s'),
+        ]);
+
+        $this->logActivity((int) $deal->id, 'payment_paid', 'Đã thu đợt dự kiến', (float) $payment->amount);
+
+        response()->success('Đã đánh dấu đã thu', ['id' => (int) $payment->id]);
     }
 
     /** DELETE api/deal/{id}/payments/{paymentId} — xóa 1 đợt thu (xóa cứng). */
@@ -304,7 +394,11 @@ class DealApi extends ApiController
             response()->setStatusCode(404)->setApiStatus(404)->error('Đợt thanh toán không tồn tại.');
         }
 
+        $amount = (float) $payment->amount;
+
         DealPayment::where('id', $payment->id)->delete();
+
+        $this->logActivity((int) $deal->id, 'payment_delete', 'Xóa đợt thu', $amount);
 
         response()->success('Đã xóa đợt thanh toán', ['id' => (int) $payment->id]);
     }
@@ -336,10 +430,181 @@ class DealApi extends ApiController
             'note'    => Str::clear((string) $request->input('note')),
         ]);
 
+        $this->logActivity(
+            (int) $deal->id,
+            'commission',
+            ($status === 'paid') ? 'Đánh dấu đã chi hoa hồng' : 'Hoãn chi hoa hồng',
+            (float) $commission->amount
+        );
+
         response()->success('Đã cập nhật hoa hồng', ['id' => (int) $commission->id, 'status' => $status]);
     }
 
+    // ─── Sub-resource: nhắc hẹn ────────────────────────────────────────────────────────
+
+    /** POST api/deal/{id}/reminders — tạo lời nhắc gắn giao dịch (title + remind_at). */
+    public function addReminder(Request $request, $id): void
+    {
+        $this->requireCap('deal_edit', 'Bạn không có quyền tạo nhắc hẹn.');
+
+        $deal = $this->findDeal((int) $id);
+
+        $title = Str::clear((string) $request->input('title'));
+        if ($title === '')
+        {
+            response()->setStatusCode(422)->setApiStatus(422)->error('Vui lòng nhập nội dung nhắc.');
+        }
+
+        $remindAt = trim((string) $request->input('remind_at'));
+        if ($remindAt === '')
+        {
+            response()->setStatusCode(422)->setApiStatus(422)->error('Vui lòng chọn thời điểm nhắc.');
+        }
+
+        $rid = DealReminder::create([
+            'deal_id'          => (int) $deal->id,
+            'assigned_user_id' => (int) $deal->assigned_user_id,
+            'title'            => $title,
+            'remind_at'        => $this->normalizeDatetime($remindAt),
+            'status'           => 'pending',
+            'note'             => Str::clear((string) $request->input('note')),
+        ]);
+
+        if (!is_numeric($rid))
+        {
+            response()->error('Tạo nhắc hẹn thất bại.');
+        }
+
+        $this->logActivity((int) $deal->id, 'reminder', 'Tạo nhắc hẹn: ' . $title);
+
+        response()->success('Đã tạo nhắc hẹn', ['id' => (int) $rid]);
+    }
+
+    /** PUT api/deal/{id}/reminders/{reminderId} — sửa / đánh dấu xong lời nhắc. */
+    public function updateReminder(Request $request, $id, $reminderId): void
+    {
+        $this->requireCap('deal_edit', 'Bạn không có quyền sửa nhắc hẹn.');
+
+        $deal = $this->findDeal((int) $id);
+
+        $reminder = DealReminder::where('id', (int) $reminderId)->where('deal_id', $deal->id)->first();
+        if (!hasItems($reminder))
+        {
+            response()->setStatusCode(404)->setApiStatus(404)->error('Nhắc hẹn không tồn tại.');
+        }
+
+        $update = [];
+
+        $status = (string) $request->input('status');
+        if (in_array($status, ['pending', 'done'], true))
+        {
+            $update['status']  = $status;
+            $update['done_at'] = ($status === 'done') ? date('Y-m-d H:i:s') : null;
+        }
+
+        $title = Str::clear((string) $request->input('title'));
+        if ($title !== '')
+        {
+            $update['title'] = $title;
+        }
+
+        $remindAt = trim((string) $request->input('remind_at'));
+        if ($remindAt !== '')
+        {
+            $update['remind_at']   = $this->normalizeDatetime($remindAt);
+            $update['reminded_at'] = null; // đổi giờ nhắc → cho phép nhắc lại
+        }
+
+        if ($request->has('note'))
+        {
+            $update['note'] = Str::clear((string) $request->input('note'));
+        }
+
+        if (empty($update))
+        {
+            response()->success('Không có thay đổi', ['id' => (int) $reminder->id]);
+        }
+
+        DealReminder::where('id', $reminder->id)->update($update);
+
+        if (($update['status'] ?? '') === 'done')
+        {
+            $this->logActivity((int) $deal->id, 'reminder_done', 'Hoàn thành nhắc hẹn: ' . (string) $reminder->title);
+        }
+
+        response()->success('Đã cập nhật nhắc hẹn', ['id' => (int) $reminder->id]);
+    }
+
+    /** DELETE api/deal/{id}/reminders/{reminderId} — xóa lời nhắc (xóa cứng). */
+    public function deleteReminder(Request $request, $id, $reminderId): void
+    {
+        $this->requireCap('deal_edit', 'Bạn không có quyền xóa nhắc hẹn.');
+
+        $deal = $this->findDeal((int) $id);
+
+        $reminder = DealReminder::where('id', (int) $reminderId)->where('deal_id', $deal->id)->first();
+        if (!hasItems($reminder))
+        {
+            response()->setStatusCode(404)->setApiStatus(404)->error('Nhắc hẹn không tồn tại.');
+        }
+
+        DealReminder::where('id', $reminder->id)->delete();
+
+        response()->success('Đã xóa nhắc hẹn', ['id' => (int) $reminder->id]);
+    }
+
     // ─── Helpers ─────────────────────────────────────────────────────────────────────
+
+    /** Ghi 1 dòng nhật ký hoạt động (append-only, tự nuốt lỗi để không chặn nghiệp vụ chính). */
+    protected function logActivity(int $dealId, string $type, string $title, float $amount = 0, string $note = ''): void
+    {
+        try
+        {
+            DealActivity::create([
+                'deal_id' => $dealId,
+                'type'    => $type,
+                'title'   => $title,
+                'amount'  => $amount,
+                'note'    => $note,
+                'user_id' => $this->userId(),
+            ]);
+        }
+        catch (\Exception $e)
+        {
+            // Nhật ký là phụ trợ — lỗi ghi log không được làm hỏng thao tác chính.
+        }
+    }
+
+    /** Danh sách nhắc hẹn của giao dịch: pending trước done, trong mỗi nhóm theo remind_at tăng dần. */
+    protected function remindersOf(int $dealId): array
+    {
+        $pending = [];
+        $done = [];
+        foreach (DealReminder::where('deal_id', $dealId)->orderBy('remind_at')->get() as $r)
+        {
+            if ((string) $r->status === 'done')
+            {
+                $done[] = $this->transformReminder($r);
+            }
+            else
+            {
+                $pending[] = $this->transformReminder($r);
+            }
+        }
+
+        return array_merge($pending, $done);
+    }
+
+    /** Nhật ký hoạt động của giao dịch (mới nhất trước, tối đa 100 dòng). */
+    protected function activitiesOf(int $dealId): array
+    {
+        $items = [];
+        foreach (DealActivity::where('deal_id', $dealId)->orderByDesc('id')->limit(100)->get() as $a)
+        {
+            $items[] = $this->transformActivity($a);
+        }
+        return $items;
+    }
 
     /** Giao dịch trong phạm vi (404/403 theo assigned_user_id). Loại bản đã xóa mềm. */
     protected function findDeal(int $id)
@@ -575,13 +840,44 @@ class DealApi extends ApiController
     protected function transformPayment($p): array
     {
         return [
-            'id'      => (int) $p->id,
-            'deal_id' => (int) $p->deal_id,
-            'amount'  => (float) $p->amount,
-            'paid_at' => $p->paid_at,
-            'method'  => (string) ($p->method ?? ''),
-            'note'    => (string) ($p->note ?? ''),
-            'created' => $p->created,
+            'id'       => (int) $p->id,
+            'deal_id'  => (int) $p->deal_id,
+            'amount'   => (float) $p->amount,
+            'status'   => (string) ($p->status ?? 'paid'),
+            'paid_at'  => $p->paid_at,
+            'due_date' => $p->due_date,
+            'method'   => (string) ($p->method ?? ''),
+            'note'     => (string) ($p->note ?? ''),
+            'created'  => $p->created,
+        ];
+    }
+
+    /** Map 1 nhắc hẹn → mảng cho FE. */
+    protected function transformReminder($r): array
+    {
+        return [
+            'id'               => (int) $r->id,
+            'deal_id'          => (int) $r->deal_id,
+            'assigned_user_id' => (int) $r->assigned_user_id,
+            'title'            => (string) $r->title,
+            'remind_at'        => $r->remind_at,
+            'status'           => (string) ($r->status ?? 'pending'),
+            'done_at'          => $r->done_at,
+            'note'             => (string) ($r->note ?? ''),
+        ];
+    }
+
+    /** Map 1 dòng nhật ký → mảng cho FE. */
+    protected function transformActivity($a): array
+    {
+        return [
+            'id'      => (int) $a->id,
+            'type'    => (string) $a->type,
+            'title'   => (string) $a->title,
+            'amount'  => (float) $a->amount,
+            'note'    => (string) ($a->note ?? ''),
+            'user_id' => (int) $a->user_id,
+            'created' => $a->created,
         ];
     }
 }

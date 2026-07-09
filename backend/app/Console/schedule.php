@@ -19,6 +19,7 @@ use App\Services\Care\CareReminder;
 use App\Services\Care\ColdDetector;
 use App\Services\Care\CustomerRelease;
 use App\Services\Customer\LeadScorer;
+use App\Services\Deal\DealReminderWatcher;
 use App\Services\Deal\DealStaleWatcher;
 use App\Services\Matching\MatchScanner;
 use App\Services\Notification\PushQueue;
@@ -215,6 +216,31 @@ app(Schedule::class)->call(function () {
         ]);
     }
 })->dailyAt('08:00')->name('deal-stale-tick');
+
+/**
+ * Tick NHẮC HẸN GIAO DỊCH (mỗi phút). Hai nguồn: (A) đợt thu DỰ KIẾN đến/quá hạn (deal_payments
+ * status=planned, due_date <= now+lead) → digest theo sales phụ trách; (B) nhắc hẹn tự do đến giờ
+ * (deal_reminders status=pending, remind_at <= now) → gửi từng lời nhắc. Đánh dấu reminded_at để
+ * không bắn lại. Bảng chưa migrate → thoát êm. Xem App\Services\Deal\DealReminderWatcher.
+ */
+app(Schedule::class)->call(function () {
+
+    try
+    {
+        $summary = (new DealReminderWatcher())->tick();
+
+        if (array_sum($summary) > 0)
+        {
+            Log::info('Deal reminder tick', $summary);
+        }
+    }
+    catch (\Throwable $e)
+    {
+        Log::error('Deal reminder tick error: ' . $e->getMessage(), [
+            'trace' => $e->getTraceAsString(),
+        ]);
+    }
+})->everyMinute()->name('deal-reminder-tick');
 
 /**
  * Tick cảnh báo BĐS TỒN KHO LÂU (hằng ngày 08:00). BĐS còn hàng (available) quá

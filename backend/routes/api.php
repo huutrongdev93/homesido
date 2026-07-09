@@ -159,7 +159,12 @@ Route::namespace('App\Controllers\Api')
         Route::delete('/{id}', 'DealApi@destroy')->name('api.deal.destroy');
         // Đợt thanh toán (sub-resource)
         Route::post('/{id}/payments', 'DealApi@addPayment')->name('api.deal.payments.add');
+        Route::put('/{id}/payments/{paymentId}/paid', 'DealApi@markPaymentPaid')->name('api.deal.payments.paid');
         Route::delete('/{id}/payments/{paymentId}', 'DealApi@deletePayment')->name('api.deal.payments.delete');
+        // Nhắc hẹn (sub-resource)
+        Route::post('/{id}/reminders', 'DealApi@addReminder')->name('api.deal.reminders.add');
+        Route::put('/{id}/reminders/{reminderId}', 'DealApi@updateReminder')->name('api.deal.reminders.update');
+        Route::delete('/{id}/reminders/{reminderId}', 'DealApi@deleteReminder')->name('api.deal.reminders.delete');
     });
 
 /**

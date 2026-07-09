@@ -12,11 +12,11 @@ gửi SP** (như `customer_transfers`), không cache match.
 
 ```
 Matching (GĐ2)
-├─ FE  src/features/Matching/pages/Matching.js               # trang /matching: 2 tab (Tabs) — "Tìm BĐS cho khách" (DebounceSelect khách → bảng BĐS gợi ý, cột ảnh đại diện) + "Tìm khách cho BĐS" (DebounceSelect BĐS → bảng khách gợi ý); nút Gửi mở SendMatchModal. DebounceSelect gọi thẳng GET api/customer|property?keyword= (không route riêng)
+├─ FE  src/features/Matching/pages/Matching.js               # trang /matching: 3 tab (Tabs) — TAB MẶC ĐỊNH "Cơ hội của tôi" (bảng cặp khách-của-tôi ↔ BĐS khớp, KHÔNG cần chọn tay — màn hình đích của thông báo đẩy) + "Tìm BĐS cho khách" (DebounceSelect khách → bảng BĐS gợi ý, cột ảnh đại diện) + "Tìm khách cho BĐS" (DebounceSelect BĐS → bảng khách gợi ý); nút Gửi mở SendMatchModal. DebounceSelect gọi thẳng GET api/customer|property?keyword= (không route riêng)
 │  ├─ src/features/Matching/components/SendMatchModal.js     # modal xác nhận gửi SP + ghi chú (ModalForm + RHF + TextAreaField); presentational — dùng chung ở trang + drawer + panel
 │  ├─ src/features/Matching/matchUtils.js                    # fmtPrice (tỷ/tr) + matchScoreColor (tag điểm) — dùng chung
 │  ├─ src/features/Matching/style/Matching.module.scss       # .picker (ô chọn) + .reasonChip (chip lý do)
-│  ├─ src/reduxs/api/matchingApiSlice.js                     # RTK Query: getSuggestedProperties/getMatchingCustomers/getCustomerMatches + sendPropertyToCustomer/updateMatchStatus; tag 'Match'
+│  ├─ src/reduxs/api/matchingApiSlice.js                     # RTK Query: getMatchOverview (Cơ hội của tôi) + getSuggestedProperties/getMatchingCustomers/getCustomerMatches + sendPropertyToCustomer/updateMatchStatus; tag 'Match'
 │  ├─ src/reduxs/api/apiSlice.js                             # tag 'Match' khai trong tagTypes
 │  ├─ src/routes/PrivateRoutes.js                            # route { path:'/matching', component:Matching, cap:'matching_view' } (DefaultLayout)
 │  ├─ src/layout/Sidebar/NavBarData.js                       # menu "Kinh doanh" → "Khớp lệnh", gate useCan('matching_view')
@@ -28,7 +28,7 @@ Matching (GĐ2)
        ├─ app/Services/Matching/MatchScanner.php             # AUTO-MATCHING tick: quét BĐS/nhu cầu cờ match_scanned=0 → digest Notifier cho sales → set cờ 1 (xem §Auto-matching)
        ├─ app/Console/schedule.php                           # đăng ký tick 'match-scan-tick' (everyMinute)
        ├─ database/matching-scan.php                         # migration cột match_scanned (properties + customer_demands) + backfill hàng cũ=1
-       ├─ app/Controllers/Api/CustomerApi.php                # matchProperties / matches (lịch sử) / sendMatch / updateMatchStatus + helpers demandsToMatch/bestScoreFor/transformMatchProperty (kèm `thumbnail` — ảnh đại diện BĐS)
+       ├─ app/Controllers/Api/CustomerApi.php                # matchOverview (Cơ hội của tôi — cặp khách↔BĐS) / matchProperties / matches (lịch sử) / sendMatch / updateMatchStatus + helpers demandsToMatch/bestScoreFor/transformMatchProperty (kèm `thumbnail` — ảnh đại diện BĐS)
        ├─ app/Services/Storage/PropertyMediaService.php      # thumbnails($rows) — giải ảnh đại diện lô BĐS (dùng chung list BĐS + gợi ý matching); xem [media.md](media.md)
        ├─ app/Controllers/Api/PropertyApi.php                # matchCustomers (gợi ý khách cho BĐS)
        ├─ app/Controllers/Api/UtilsApi.php::index            # enum matching.statuses cho FE
@@ -55,17 +55,40 @@ mới, tick nền tự so khớp và **báo cho sales phụ trách khách** — 
   `PROPERTY_BATCH=100` / `DEMAND_BATCH=200`; chiều nhu cầu chỉ báo khách có sales (`assigned_user_id>0`,
   bỏ qua kho chung). Migration **backfill toàn bộ dữ liệu cũ = 1** (guard `hasColumn`, chạy 1 lần) để
   lần bật đầu tiên không bắn thông báo hàng loạt cho kho/nhu cầu hiện có.
-- **Giới hạn có chủ đích (GĐ2.1):** chỉ BĐS/nhu cầu **mới** kích hoạt. **Sửa BĐS (kể cả chuyển sang
-  `available`) KHÔNG quét lại** (tránh churn thông báo mỗi lần sửa) — nếu cần, nâng cấp bằng cách reset
-  cờ khi `status` chuyển vào `available` ở `PropertyApi::update`. Khách ở kho chung (chưa có sales) không
-  được báo cho tới khi có người nhận.
+- **Quét lại khi khách ĐỔI CHỦ (GĐ2.1a):** khách ở kho chung bị `scanNewDemands` bỏ qua (chưa có sales)
+  nhưng vẫn set cờ=1 → nếu không xử lý, người nhận sau này KHÔNG bao giờ được báo. Đã bịt: helper
+  `CustomerApi::rescanDemandsForNewOwner($customerId)` reset `match_scanned=0` cho nhu cầu `is_active=1`
+  của khách, gọi tại MỌI điểm đổi chủ: `update` (nhận từ kho chung / admin đổi phụ trách — chỉ khi
+  `assigned_user_id` thực sự đổi), `addInteraction` + `sendMatch` (auto-claim từ kho chung), `transfer`
+  (bàn giao X→Y). Tick kế sẽ quét lại và báo BĐS khớp cho chủ mới. Guard `hasColumn` (an toàn khi
+  chưa migrate). Không thêm cột/route/cap.
+- **Giới hạn có chủ đích (GĐ2.1):** chỉ BĐS/nhu cầu **mới** (hoặc khách đổi chủ, xem trên) kích hoạt.
+  **Sửa BĐS (kể cả chuyển sang `available`) KHÔNG quét lại** (tránh churn thông báo mỗi lần sửa) — nếu
+  cần, nâng cấp bằng cách reset cờ khi `status` chuyển vào `available` ở `PropertyApi::update`.
 - **Bật:** cần chạy `GET api/utils/database` (áp `database/matching-scan.php`) + cron gọi `schedule-run` mỗi phút.
+
+## "Cơ hội của tôi" (match-overview — màn hình đích của thông báo)
+
+Thông báo đẩy auto-matching ("N khách của bạn vừa có BĐS phù hợp") link `/matching`. Trước đây trang này
+mở ra **trống** (2 tab đều phải chọn tay khách/BĐS) → sales không biết khách nào ↔ BĐS nào. Đã thêm **tab
+mặc định "Cơ hội của tôi"** hiện thẳng danh sách cặp:
+
+- **Endpoint** `GET api/customer/match-overview` (`CustomerApi::matchOverview`, cap `matching_view`, đặt
+  TRƯỚC `/{id}` trong routes để không bị nuốt). Trả **mảng phẳng** các cặp `{customer_*, property..., score,
+  reasons, demand_id, already_sent}`, sắp theo `score` giảm dần.
+- **Logic** (on-the-fly, tái dùng `MatchEngine`): nạp **khách CỦA TÔI** (`assigned_user_id = tôi`) + nhu cầu
+  `is_active=1`, nạp **kho khả kiến 1 lần** (available, của tôi + `shared` khi không có `property_view_all`),
+  rồi so từng nhu cầu × từng BĐS trong PHP (`matchesProperty`+`score`+`reasons`) → gộp theo cặp (khách,BĐS)
+  giữ điểm cao nhất. Trần: `OVERVIEW_CUSTOMER_CAP=300` / `OVERVIEW_STOCK_CAP=800` / `OVERVIEW_PAIR_LIMIT=100`.
+- **Chỉ khách của tôi** (bỏ kho chung) — khớp ngữ nghĩa thông báo per-sales; quyền `property_view_all` mở
+  rộng kho khả kiến nhưng vẫn chỉ khách mình phụ trách. Nút Gửi tái dùng `SendMatchModal` + `sendPropertyToCustomer`.
 
 ## Cap / Route
 
 - **Cap** (gate trong controller; administrator/root bypass):
   `matching_view` (xem gợi ý + vào trang /matching), `matching_send` (gửi SP cho khách + đổi trạng thái).
-- **Route Khách** (`jwt`, prefix `api/customer`): `GET /{id}/match-properties?demand_id=` (gợi ý BĐS),
+- **Route Khách** (`jwt`, prefix `api/customer`): `GET /match-overview` (Cơ hội của tôi — cặp khách↔BĐS, đặt
+  TRƯỚC `/{id}`), `GET /{id}/match-properties?demand_id=` (gợi ý BĐS),
   `GET /{id}/matches` (lịch sử đã gửi), `POST /{id}/matches` (gửi SP — body `property_id`,`demand_id?`,`note?`),
   `PUT /{id}/matches/{matchId}` (đổi `status`/`note`).
 - **Route BĐS** (`jwt`, prefix `api/property`): `GET /{id}/match-customers` (gợi ý khách).

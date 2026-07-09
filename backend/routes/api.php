@@ -80,6 +80,8 @@ Route::namespace('App\Controllers\Api')
         Route::get('/export', 'CustomerApi@export')->name('api.customer.export');
         Route::get('/import-template', 'CustomerApi@importTemplate')->name('api.customer.import.template');
         Route::post('/import', 'CustomerApi@import')->name('api.customer.import');
+        // Matching — bảng tổng hợp "Cơ hội của tôi" (khách của tôi ↔ BĐS khớp). TRƯỚC /{id} để không bị nuốt.
+        Route::get('/match-overview', 'CustomerApi@matchOverview')->name('api.customer.matchOverview');
         Route::get('/{id}', 'CustomerApi@detail')->name('api.customer.detail');
         Route::put('/{id}', 'CustomerApi@update')->name('api.customer.update');
         Route::delete('/{id}', 'CustomerApi@destroy')->name('api.customer.destroy');

@@ -94,65 +94,236 @@
 	}
 }
 
-.demandItem {
+/* ===== NHU CẦU / TIÊU CHÍ ===== */
+.demandList {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.demandCard {
 	border: 1px solid var(--border-color);
 	border-radius: 10px;
 	padding: 10px 12px;
-	margin-bottom: 8px;
+	transition: border-color .15s, box-shadow .15s;
 
-	.demandMain {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-		flex-wrap: wrap;
+	&:hover {
+		border-color: var(--primary, #2563eb);
+		box-shadow: 0 1px 6px rgba(37, 99, 235, .08);
 	}
 
-	// Ảnh đại diện BĐS trong mục gợi ý (Matching).
-	.matchThumb {
-		flex: 0 0 auto;
-		width: 34px;
-		height: 34px;
+	// Nhu cầu đã ngừng tìm → làm mờ nhẹ.
+	&.isInactive { opacity: .6; }
+}
+
+.demandCardHead {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.demandTitle {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+
+.demandType {
+	font-weight: 600;
+}
+
+// Nút icon Sửa/Xóa gọn (hiện rõ khi hover card).
+.iconActions {
+	flex: 0 0 auto;
+	display: flex;
+	gap: 4px;
+
+	button {
+		border: none;
+		background: none;
+		padding: 4px;
+		width: 26px;
+		height: 26px;
 		border-radius: 6px;
-		overflow: hidden;
-		background: #e9eefb;
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		color: #9aa7c7;
-		font-size: 13px;
-
-		img { width: 100%; height: 100%; object-fit: cover; }
-	}
-
-	.demandType {
-		font-weight: 600;
-	}
-
-	.demandCriteria {
-		margin: 6px 0 0;
+		cursor: pointer;
 		font-size: 13px;
 		color: var(--text-muted);
-		line-height: 1.6;
+		transition: background .15s, color .15s;
+
+		&:hover { background: var(--border-color); color: var(--primary, #2563eb); }
 	}
 
-	.careActions {
-		margin-top: 8px;
-		display: flex;
-		gap: 14px;
+	.linkDanger:hover { color: #ef4444; }
+}
 
-		button {
-			border: none;
-			background: none;
-			padding: 0;
-			cursor: pointer;
-			font-size: 13px;
-			font-weight: 600;
-			color: var(--primary, #2563eb);
-		}
+// Tiêu chí dạng chip nhỏ, xuống dòng gọn.
+.chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-top: 8px;
+}
 
-		.linkDanger {
-			color: #ef4444;
-		}
+.chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 2px 9px;
+	border-radius: 20px;
+	background: var(--surface-muted, #f1f5f9);
+	color: var(--text);
+	font-size: 12.5px;
+	line-height: 1.7;
+
+	svg, i { color: var(--text-muted); font-size: 11px; }
+}
+
+/* ===== GỢI Ý BĐS (Matching) ===== */
+// Đếm số BĐS phù hợp, badge cạnh tiêu đề section.
+.count {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 20px;
+	height: 20px;
+	padding: 0 6px;
+	border-radius: 20px;
+	background: var(--primary, #2563eb);
+	color: #fff;
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.matchList {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.matchCard {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	border: 1px solid var(--border-color);
+	border-radius: 10px;
+	padding: 8px 10px;
+	transition: border-color .15s, box-shadow .15s;
+
+	&:hover {
+		border-color: var(--primary, #2563eb);
+		box-shadow: 0 1px 6px rgba(37, 99, 235, .08);
+	}
+}
+
+// Ảnh đại diện BĐS + badge điểm khớp phủ góc.
+.matchThumb {
+	position: relative;
+	flex: 0 0 auto;
+	width: 52px;
+	height: 52px;
+	border-radius: 8px;
+	overflow: hidden;
+	background: #e9eefb;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	color: #9aa7c7;
+	font-size: 16px;
+
+	img { width: 100%; height: 100%; object-fit: cover; }
+}
+
+.matchScore {
+	position: absolute;
+	left: 0;
+	bottom: 0;
+	min-width: 22px;
+	height: 16px;
+	padding: 0 4px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 0 6px 0 0;
+	color: #fff;
+	font-size: 11px;
+	font-weight: 700;
+	line-height: 1;
+}
+
+.matchInfo {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.matchTitle {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+}
+
+.matchCode {
+	flex: 0 0 auto;
+	font-size: 11px;
+	font-weight: 700;
+	color: var(--primary, #2563eb);
+	background: var(--surface-muted, #f1f5f9);
+	padding: 1px 6px;
+	border-radius: 5px;
+}
+
+.matchName {
+	flex: 1 1 auto;
+	font-weight: 600;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.sentTag {
+	flex: 0 0 auto;
+	margin: 0;
+	font-size: 11px;
+}
+
+.matchMeta {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	margin-top: 3px;
+	min-width: 0;
+
+	strong { color: #ef4444; font-size: 13px; }
+}
+
+.matchReasons {
+	flex: 1 1 auto;
+	font-size: 12px;
+	color: var(--text-muted);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+// Nút gửi SP cho khách (icon tròn).
+.sendBtn {
+	flex: 0 0 auto;
+	width: 34px;
+	height: 34px;
+	border: 1px solid var(--border-color);
+	border-radius: 8px;
+	background: none;
+	cursor: pointer;
+	color: var(--primary, #2563eb);
+	font-size: 14px;
+	transition: background .15s, color .15s, border-color .15s;
+
+	&:hover {
+		background: var(--primary, #2563eb);
+		border-color: var(--primary, #2563eb);
+		color: #fff;
 	}
 }
 

@@ -54,6 +54,11 @@ class CustomerApi extends ApiController
     /** Trần số gợi ý trả về (Matching) — đủ dùng, tránh trả cả kho. */
     const MATCH_LIMIT = 50;
 
+    /** Trần cho bảng tổng hợp "Cơ hội của tôi" (match-overview) — giữ tick nhẹ, tránh quét cả sàn. */
+    const OVERVIEW_CUSTOMER_CAP = 300; // số khách của tôi quét mỗi lần mở
+    const OVERVIEW_STOCK_CAP    = 800; // số BĐS khả kiến nạp 1 lần để so trong PHP
+    const OVERVIEW_PAIR_LIMIT   = 100; // số cặp khách↔BĐS trả về (điểm cao nhất)
+
     /**
      * GET api/customer — danh sách có filter + phân trang, áp data-scope.
      * Query: page, pageSize, keyword (tên/SĐT), pipeline_stage, temperature, assigned_user_id.
@@ -207,6 +212,13 @@ class CustomerApi extends ApiController
         }
 
         Customer::where('id', $customer->id)->update($data);
+
+        // Khách vừa được gán/nhận về một sales khác (kho chung → có chủ, hoặc đổi chủ) → quét lại
+        // matching để báo BĐS khớp cho chủ mới.
+        if (isset($data['assigned_user_id']) && (int) $data['assigned_user_id'] !== (int) $customer->assigned_user_id)
+        {
+            $this->rescanDemandsForNewOwner((int) $customer->id);
+        }
 
         // Giai đoạn/nhiệt độ có thể đổi → chấm lại điểm tiềm năng.
         LeadScorer::recompute((int) $customer->id);
@@ -369,6 +381,8 @@ class CustomerApi extends ApiController
         if (!$this->canViewAll('customer_view_all') && (int) $customer->assigned_user_id === 0)
         {
             Customer::where('id', $customer->id)->update(['assigned_user_id' => $this->userId()]);
+            // Có chủ mới → quét lại matching để báo BĐS khớp trong kho cho người nhận.
+            $this->rescanDemandsForNewOwner((int) $customer->id);
         }
 
         // Cập nhật mốc tương tác + gia hạn khóa (đang chăm tích cực → không bị auto-release).
@@ -449,6 +463,27 @@ class CustomerApi extends ApiController
         response()->success('Đã xóa nhu cầu', ['id' => (int) $demand->id]);
     }
 
+    /**
+     * Khách vừa ĐỔI CHỦ (nhận từ kho chung / bàn giao) → đặt lại cờ `match_scanned = 0` cho các
+     * nhu cầu ĐANG BẬT để tick auto-matching quét lại và báo BĐS khớp cho SALES MỚI.
+     *
+     * Vì sao cần: khi khách còn ở kho chung (`assigned_user_id = 0`), tick `scanNewDemands` bỏ qua
+     * (không có sales để báo) NHƯNG vẫn set cờ = 1. Nếu không reset khi có người nhận, nhu cầu đó
+     * không bao giờ được quét lại → người nhận không nhận được gợi ý. Xem MatchScanner::scanNewDemands.
+     * Guard `hasColumn` để an toàn khi migration matching-scan chưa chạy.
+     */
+    protected function rescanDemandsForNewOwner(int $customerId): void
+    {
+        if (!schema()->hasColumn('customer_demands', 'match_scanned'))
+        {
+            return;
+        }
+
+        CustomerDemand::where('customer_id', $customerId)
+            ->where('is_active', 1)
+            ->update(['match_scanned' => 0]);
+    }
+
     // ─── Matching (gợi ý BĐS cho khách + gửi SP) ─────────────────────────────────────
 
     /**
@@ -520,6 +555,130 @@ class CustomerApi extends ApiController
         usort($items, fn ($a, $b) => $b['score'] <=> $a['score']);
 
         response()->success('success', array_slice($items, 0, self::MATCH_LIMIT));
+    }
+
+    /**
+     * GET api/customer/match-overview — bảng tổng hợp "Cơ hội của tôi": mọi cặp KHÁCH CỦA TÔI ↔ BĐS
+     * phù hợp trong kho khả kiến, sắp theo điểm khớp giảm dần. Đây là màn hình ĐÍCH của thông báo đẩy
+     * auto-matching ("N khách của bạn vừa có BĐS phù hợp") — mở ra thấy NGAY khách nào khớp BĐS nào,
+     * không phải chọn tay từng khách.
+     *
+     * Tính on-the-fly (không cache), tái dùng MatchEngine. Để nhẹ: nạp kho khả kiến 1 lần (thay vì
+     * 1 truy vấn/nhu cầu) rồi so từng nhu cầu × từng BĐS trong PHP (giống PropertyApi::matchCustomers).
+     * Chỉ xét khách của tôi (assigned_user_id = tôi) — bỏ kho chung, khớp ngữ nghĩa thông báo per-sales.
+     */
+    public function matchOverview(Request $request): void
+    {
+        $this->requireCap('matching_view', 'Bạn không có quyền xem gợi ý khớp.');
+
+        $me = $this->userId();
+
+        // Khách CỦA TÔI (map id → bản ghi để lấy tên/SĐT/giai đoạn khi build kết quả).
+        $customers = [];
+        foreach (Customer::where('assigned_user_id', $me)->limit(self::OVERVIEW_CUSTOMER_CAP)->get() as $c)
+        {
+            $customers[(int) $c->id] = $c;
+        }
+
+        if (empty($customers))
+        {
+            response()->success('success', []);
+        }
+
+        // Nhu cầu đang bật của các khách đó (1 truy vấn).
+        $demands = CustomerDemand::where('is_active', 1)
+            ->whereIn('customer_id', array_keys($customers))
+            ->get();
+
+        if (count($demands) === 0)
+        {
+            response()->success('success', []);
+        }
+
+        // Kho khả kiến (available; của tôi + kho chung shared khi không có property_view_all) — nạp 1 lần.
+        $stockQuery = Property::where('status', 'available')
+            ->whereIn('transaction_type', ['sale', 'rent']);
+
+        if (!$this->canViewAll('property_view_all'))
+        {
+            $stockQuery->where(function ($q) use ($me) {
+                $q->where('assigned_user_id', $me)->orWhere('visibility', 'shared');
+            });
+        }
+
+        $stock = $stockQuery->orderByDesc('id')->limit(self::OVERVIEW_STOCK_CAP)->get();
+
+        // So từng nhu cầu × từng BĐS. Gộp theo cặp (khách, BĐS) giữ điểm cao nhất + nhu cầu tạo điểm đó.
+        $pairs = []; // "custId:propId" => [...]
+        foreach ($demands as $demand)
+        {
+            $cid = (int) $demand->customer_id;
+            foreach ($stock as $property)
+            {
+                if (!MatchEngine::matchesProperty($demand, $property))
+                {
+                    continue;
+                }
+
+                $score = MatchEngine::score($demand, $property);
+                $key   = $cid . ':' . (int) $property->id;
+
+                if (!isset($pairs[$key]) || $score > $pairs[$key]['score'])
+                {
+                    $pairs[$key] = [
+                        'customer'  => $customers[$cid],
+                        'property'  => $property,
+                        'score'     => $score,
+                        'demand_id' => (int) $demand->id,
+                        'reasons'   => MatchEngine::reasons($demand, $property),
+                    ];
+                }
+            }
+        }
+
+        if (empty($pairs))
+        {
+            response()->success('success', []);
+        }
+
+        // Sắp theo điểm giảm dần + cắt trần.
+        $pairs = array_values($pairs);
+        usort($pairs, fn ($a, $b) => $b['score'] <=> $a['score']);
+        $pairs = array_slice($pairs, 0, self::OVERVIEW_PAIR_LIMIT);
+
+        // Đánh dấu cặp đã gửi (theo cặp khách:BĐS) + ảnh đại diện BĐS (1 truy vấn/lô).
+        $sent = [];
+        foreach (PropertyCustomerMatch::whereIn('customer_id', array_keys($customers))->get() as $m)
+        {
+            $sent[(int) $m->customer_id . ':' . (int) $m->property_id] = true;
+        }
+
+        $thumbs = PropertyMediaService::thumbnails(array_column($pairs, 'property'));
+
+        $items = [];
+        foreach ($pairs as $p)
+        {
+            $c    = $p['customer'];
+            $prop = $p['property'];
+            $items[] = [
+                'customer_id'    => (int) $c->id,
+                'customer_name'  => (string) $c->full_name,
+                'customer_phone' => (string) $c->phone,
+                'pipeline_stage' => (string) $c->pipeline_stage,
+                'property_id'    => (int) $prop->id,
+                'code'           => (string) $prop->code,
+                'title'          => (string) $prop->title,
+                'thumbnail'      => $thumbs[(int) $prop->id] ?? null,
+                'property_type'  => (string) $prop->property_type,
+                'price'          => (float) $prop->price,
+                'score'          => (int) $p['score'],
+                'demand_id'      => (int) $p['demand_id'],
+                'reasons'        => $p['reasons'],
+                'already_sent'   => isset($sent[(int) $c->id . ':' . (int) $prop->id]),
+            ];
+        }
+
+        response()->success('success', $items);
     }
 
     /**
@@ -648,6 +807,8 @@ class CustomerApi extends ApiController
         if (!$this->canViewAll('customer_view_all') && (int) $customer->assigned_user_id === 0)
         {
             Customer::where('id', $customer->id)->update(['assigned_user_id' => $this->userId()]);
+            // Có chủ mới → quét lại matching (có thể còn BĐS khác trong kho khớp ngoài SP vừa gửi).
+            $this->rescanDemandsForNewOwner((int) $customer->id);
         }
 
         Customer::touch((int) $customer->id);
@@ -792,6 +953,9 @@ class CustomerApi extends ApiController
             'locked_until'     => Customer::lockExpiry(),
             'is_cold_flagged'  => 0,
         ]);
+
+        // Đổi chủ → quét lại matching để báo BĐS khớp trong kho cho người nhận bàn giao.
+        $this->rescanDemandsForNewOwner((int) $customer->id);
 
         CustomerTransfer::create([
             'customer_id'    => (int) $customer->id,

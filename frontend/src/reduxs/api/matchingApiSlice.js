@@ -4,6 +4,8 @@ import {apiSlice} from './apiSlice';
  * Matching Khách ↔ BĐS (GĐ2) — RTK Query.
  *
  * Tính khớp on-the-fly ở BE (App\Services\Matching\MatchEngine); FE chỉ đọc gợi ý + gửi SP.
+ * - getMatchOverview(): "Cơ hội của tôi" — mọi cặp khách-của-tôi ↔ BĐS khớp trong kho (màn hình đích
+ *   của thông báo đẩy auto-matching); không cần chọn tay từng khách.
  * - getSuggestedProperties(customerId): BĐS khớp nhu cầu 1 khách (kèm score + reasons + already_sent).
  * - getMatchingCustomers(propertyId): khách khớp 1 BĐS.
  * - getCustomerMatches(customerId): lịch sử SP đã gửi cho khách.
@@ -12,6 +14,11 @@ import {apiSlice} from './apiSlice';
  */
 export const matchingApiSlice = apiSlice.injectEndpoints({
 	endpoints: (builder) => ({
+		getMatchOverview: builder.query({
+			query: () => ({url: 'customer/match-overview', method: 'get'}),
+			transformResponse: (body) => body?.data || [],
+			providesTags: ['Match'],
+		}),
 		getSuggestedProperties: builder.query({
 			// arg: customerId (số) hoặc {customerId, demandId} để lọc theo 1 nhu cầu.
 			query: (arg) => {
@@ -56,6 +63,7 @@ export const matchingApiSlice = apiSlice.injectEndpoints({
 });
 
 export const {
+	useGetMatchOverviewQuery,
 	useGetSuggestedPropertiesQuery,
 	useGetMatchingCustomersQuery,
 	useGetCustomerMatchesQuery,

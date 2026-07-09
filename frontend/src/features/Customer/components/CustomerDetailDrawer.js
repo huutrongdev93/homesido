@@ -49,6 +49,9 @@ const fmt = (v) => (v ? dayjs(v).format('DD/MM/YYYY HH:mm') : '');
 // Màu theo điểm tiềm năng (0–100): càng cao càng "nóng".
 const scoreColor = (s) => (s >= 70 ? 'green' : s >= 40 ? 'gold' : s > 0 ? 'blue' : 'default');
 
+// Màu nền (hex) cho badge điểm khớp phủ trên ảnh BĐS gợi ý.
+const scoreBg = (s) => (s >= 70 ? '#16a34a' : s >= 40 ? '#d97706' : s > 0 ? '#2563eb' : '#94a3b8');
+
 /** Số tiền VNĐ → chuỗi gọn (tỷ / triệu). Trả '' nếu 0/rỗng. */
 const money = (vnd) => {
 	const n = Number(vnd) || 0;
@@ -269,64 +272,90 @@ function CustomerDetailDrawer({open, customer, stageMap = {}, tempMap = {}, onCl
 						</div>
 						{demands.length === 0
 							? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Chưa có nhu cầu" />
-							: demands.map((d) => {
-								const budget = range(d.budget_min, d.budget_max, money);
-								const area = range(d.area_min, d.area_max, null, 'm²');
-								const parts = [
-									budget ? `💰 ${budget}` : '',
-									area ? `📐 ${area}` : '',
-									d.bedrooms_min > 0 ? `🛏 ≥ ${d.bedrooms_min} PN` : '',
-									d.direction ? `🧭 ${directionMap[d.direction] || d.direction}` : '',
-									d.province_code ? `📍 ${provinceMap[d.province_code] || ''}` : '',
-									d.purpose ? (purposeMap[d.purpose] || d.purpose) : '',
-								].filter(Boolean);
-								return (
-									<div key={d.id} className={style.demandItem}>
-										<div className={style.demandMain}>
-											<Tag color="blue">{demandTypeMap[d.demand_type] || d.demand_type}</Tag>
-											{d.property_type && <span className={style.demandType}>{propTypeMap[d.property_type] || d.property_type}</span>}
-											{!d.is_active && <Tag>Ngừng tìm</Tag>}
-										</div>
-										{parts.length > 0 && <p className={style.demandCriteria}>{parts.join('  ·  ')}</p>}
-										{canEdit && (
-											<div className={style.careActions}>
-												<button type="button" onClick={() => setOpenDemand(d)}>Sửa</button>
-												<button type="button" className={style.linkDanger} onClick={() => events.removeDemand(d)}>Xóa</button>
+							: <div className={style.demandList}>
+								{demands.map((d) => {
+									const budget = range(d.budget_min, d.budget_max, money);
+									const area = range(d.area_min, d.area_max, null, 'm²');
+									const chips = [
+										budget && {icon: 'fa-sack-dollar', text: budget},
+										area && {icon: 'fa-ruler-combined', text: area},
+										d.bedrooms_min > 0 && {icon: 'fa-bed', text: `≥ ${d.bedrooms_min} PN`},
+										d.direction && {icon: 'fa-compass', text: directionMap[d.direction] || d.direction},
+										d.province_code && {icon: 'fa-location-dot', text: provinceMap[d.province_code] || ''},
+										d.purpose && {icon: 'fa-bullseye', text: purposeMap[d.purpose] || d.purpose},
+									].filter(Boolean);
+									return (
+										<div key={d.id} className={`${style.demandCard}${d.is_active ? '' : ' ' + style.isInactive}`}>
+											<div className={style.demandCardHead}>
+												<div className={style.demandTitle}>
+													<Tag color="blue">{demandTypeMap[d.demand_type] || d.demand_type}</Tag>
+													{d.property_type && <span className={style.demandType}>{propTypeMap[d.property_type] || d.property_type}</span>}
+													{!d.is_active && <Tag>Ngừng tìm</Tag>}
+												</div>
+												{canEdit && (
+													<div className={style.iconActions}>
+														<button type="button" title="Sửa" onClick={() => setOpenDemand(d)}>
+															<FontAwesomeIcon icon="fa-light fa-pen" />
+														</button>
+														<button type="button" title="Xóa" className={style.linkDanger} onClick={() => events.removeDemand(d)}>
+															<FontAwesomeIcon icon="fa-light fa-trash-can" />
+														</button>
+													</div>
+												)}
 											</div>
-										)}
-									</div>
-								);
-							})}
+											{chips.length > 0 && (
+												<div className={style.chips}>
+													{chips.map((c, idx) => (
+														<span key={idx} className={style.chip}>
+															<FontAwesomeIcon icon={`fa-light ${c.icon}`} /> {c.text}
+														</span>
+													))}
+												</div>
+											)}
+										</div>
+									);
+								})}
+							</div>}
 					</section>
 
 					{/* GỢI Ý BĐS (Matching) */}
 					{canMatchView && (
 						<section className={style.section}>
 							<div className={style.sectionHead}>
-								<h4><FontAwesomeIcon icon="fa-light fa-arrows-repeat" /> Gợi ý bất động sản</h4>
+								<h4>
+									<FontAwesomeIcon icon="fa-light fa-arrows-repeat" /> Gợi ý bất động sản
+									{matchProps.length > 0 && <span className={style.count}>{matchProps.length}</span>}
+								</h4>
 							</div>
 							{matchProps.length === 0
 								? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Chưa có BĐS phù hợp" />
-								: matchProps.slice(0, 8).map((p) => (
-									<div key={p.id} className={style.demandItem}>
-										<div className={style.demandMain}>
+								: <div className={style.matchList}>
+									{matchProps.slice(0, 8).map((p) => (
+										<div key={p.id} className={style.matchCard}>
 											<span className={style.matchThumb}>
 												{p.thumbnail ? <img src={p.thumbnail} alt="" /> : <FontAwesomeIcon icon="fa-light fa-image" />}
+												<span className={style.matchScore} style={{background: scoreBg(p.score || 0)}}>{p.score || 0}</span>
 											</span>
-											<Tag color={matchScoreColor(p.score || 0)}>{p.score || 0}</Tag>
-											<span className={style.demandType}>{p.code} — {p.title}</span>
-											{p.already_sent && <Tag color="success">Đã gửi</Tag>}
-										</div>
-										<p className={style.demandCriteria}>
-											💰 {fmtPrice(p.price)}{p.reasons?.length ? '  ·  ' + p.reasons.join('  ·  ') : ''}
-										</p>
-										{canMatchSend && !p.already_sent && (
-											<div className={style.careActions}>
-												<button type="button" onClick={() => setSendMatch({propertyId: p.id, demand_id: p.demand_id, subtitle: `${p.code} — ${p.title}`})}>Gửi cho khách</button>
+											<div className={style.matchInfo}>
+												<div className={style.matchTitle}>
+													<span className={style.matchCode}>{p.code}</span>
+													<span className={style.matchName}>{p.title}</span>
+													{p.already_sent && <Tag color="success" bordered={false} className={style.sentTag}>Đã gửi</Tag>}
+												</div>
+												<div className={style.matchMeta}>
+													<strong>{fmtPrice(p.price)}</strong>
+													{p.reasons?.length ? <span className={style.matchReasons}>{p.reasons.join('  ·  ')}</span> : null}
+												</div>
 											</div>
-										)}
-									</div>
-								))}
+											{canMatchSend && !p.already_sent && (
+												<button type="button" className={style.sendBtn} title="Gửi cho khách"
+													onClick={() => setSendMatch({propertyId: p.id, demand_id: p.demand_id, subtitle: `${p.code} — ${p.title}`})}>
+													<FontAwesomeIcon icon="fa-light fa-paper-plane" />
+												</button>
+											)}
+										</div>
+									))}
+								</div>}
 						</section>
 					)}
 

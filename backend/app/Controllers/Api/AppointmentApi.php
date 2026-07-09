@@ -3,6 +3,7 @@
 namespace App\Controllers\Api;
 
 use App\Models\Appointment;
+use App\Models\CareSchedule;
 use App\Models\Customer;
 use App\Models\CustomerInteraction;
 use App\Models\Property;
@@ -265,6 +266,29 @@ class AppointmentApi extends ApiController
             // Cập nhật mốc chăm sóc + gỡ cờ nguội + gia hạn khóa; chấm lại điểm.
             Customer::touch($customerId);
             LeadScorer::recompute($customerId);
+
+            // AUTO FOLLOW-UP: tự đặt lịch chăm "hỏi cảm nhận sau xem" +1 ngày (care-reminder-tick sẽ
+            // nhắc khi đến hạn). Bỏ qua nếu đã đặt cọc (result=deposited → chuyển sang giao dịch).
+            // Fire-and-forget: lỗi tạo lịch KHÔNG được làm hỏng việc hoàn thành buổi hẹn.
+            if ($result !== 'deposited')
+            {
+                try
+                {
+                    CareSchedule::create([
+                        'customer_id'      => $customerId,
+                        'assigned_user_id' => ((int) $appt->assigned_user_id > 0) ? (int) $appt->assigned_user_id : $this->userId(),
+                        'care_template_id' => 0,
+                        'type'             => 'call',
+                        'scheduled_at'     => date('Y-m-d H:i:s', strtotime('+1 day')),
+                        'content'          => 'Hỏi cảm nhận của khách sau buổi dẫn xem và chốt bước tiếp theo.',
+                        'status'           => 'pending',
+                    ]);
+                }
+                catch (\Throwable $e)
+                {
+                    // Bỏ qua: follow-up chỉ là tiện ích tự động.
+                }
+            }
         }
 
         response()->success('Đã hoàn thành buổi hẹn', ['id' => (int) $appt->id]);

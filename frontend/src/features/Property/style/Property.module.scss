@@ -218,6 +218,7 @@
 	background: #fff;
 	border: 1px solid var(--border-color);
 	color: var(--text, #374151);
+	text-decoration: none;
 	transition: all .15s ease;
 
 	&:hover { border-color: #2563eb; color: #2563eb; }

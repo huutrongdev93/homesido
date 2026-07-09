@@ -30,6 +30,8 @@ Giao dịch (Deal)
        ├─ app/Controllers/Api/UtilsApi.php::database          # đăng ký 'database/deal.php' vào $migrations
        ├─ app/Roles/RoleCapabilitiesDeal.php                  # cap: deal_view/add/edit/delete/view_all + commission_manage
        ├─ app/Roles/register.php                              # $groups['deal'] = 'Giao dịch'
+       ├─ app/Console/schedule.php                            # tick 'deal-stale-tick' (dailyAt 08:00) — cảnh báo deal treo
+       ├─ app/Services/Deal/DealStaleWatcher.php              # tick: deal deposit/contract updated < now-DEAL_STALE_DAYS → digest sendUnique cho chủ deal
        └─ database/deal.php                                   # 3 bảng deals / deal_payments / commissions (guard hasTable)
 ```
 
@@ -48,6 +50,20 @@ Giao dịch (Deal)
 - `POST api/deal/{id}/payments` — thêm đợt thu (`amount`>0, `method`, `paid_at`, `note`). Cap `deal_edit`.
 - `DELETE api/deal/{id}/payments/{paymentId}` — xóa đợt thu (xóa cứng). Cap `deal_edit`.
 - `PUT  api/deal/{id}/commission` — đánh dấu chi/chưa chi (body `status` pending|paid). Cap **`commission_manage`**.
+
+## Tick nền — `deal-stale-tick` (cảnh báo deal treo, GĐ2 tự động hóa)
+
+`DealStaleWatcher::tick()` (dailyAt 08:00): quét deal **còn mở** (`status ∈ deposit/contract`) mà `updated`
+đã quá **`DEAL_STALE_DAYS`** ngày (env, mặc định 7) → gom **digest theo sales phụ trách** →
+`Notifier::sendUnique('warning','Giao dịch đang treo', …, '/deals')` (không spam mỗi ngày, chỉ nhắc lại
+sau khi đọc). Bảng chưa migrate → thoát êm.
+> **GOTCHA:** `deals.updated` chỉ bump khi sửa/chuyển giai đoạn deal — `DealApi::addPayment` **KHÔNG** chạm
+> bảng `deals`, nên "lâu không cập nhật" = lâu không chuyển giai đoạn (không tính việc thu tiền). Nếu cần
+> tính cả hoạt động thu tiền làm "last activity", bump `deals.updated` trong `addPayment`/`deletePayment`.
+
+> **Chưa làm (cần schema):** nhắc **đợt thanh toán đến hạn/quá hạn** — `deal_payments` hiện KHÔNG có
+> `due_date`/`status` (mỗi dòng coi như đã thu, `paid_at`=now). Muốn làm phải bổ sung "kế hoạch thu"
+> (cột `due_date` + `status` pending/paid) tách khỏi "đã thu".
 
 ## Nghiệp vụ chính
 

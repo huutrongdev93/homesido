@@ -220,7 +220,7 @@ Nguồn: `database/crm.php` (đăng ký thứ 2 trong `$migrations`). **Không m
 Index: `(phone)`, `(assigned_user_id, pipeline_stage)`.
 
 ### `customer_demands` — Nhu cầu / tiêu chí (1 khách N nhu cầu)
-`id` · `customer_id` (index) · `demand_type` enum(buy,rent,sell,consign) · `property_type` string · `purpose` string(live/invest, ''=chưa chọn) · `province_code`/`ward_code` int · `budget_min`/`budget_max` decimal(15,2) default 0 · `area_min`/`area_max` decimal(10,2) default 0 · `bedrooms_min` tinyint(0=trống) · `direction` · `is_active` · `created` · `updated`.
+`id` · `customer_id` (index) · `demand_type` enum(buy,rent,sell,consign) · `property_type` string · `purpose` string(live/invest, ''=chưa chọn) · `province_code`/`ward_code` int · `budget_min`/`budget_max` decimal(15,2) default 0 · `area_min`/`area_max` decimal(10,2) default 0 · `bedrooms_min` tinyint(0=trống) · `direction` · `is_active` · **`match_scanned`** tinyint default 0 (index — auto-matching: 0=chưa quét/vừa đổi tiêu chí, 1=đã quét; tick `match-scan-tick` gợi ý BĐS khớp) · `created` · `updated`.
 
 ### `projects` — Dự án
 `id` · `name` · `developer` (chủ đầu tư) · `province_code`/`ward_code` int · `address` · `description` · `created` · `updated`.
@@ -229,8 +229,9 @@ Index: `(phone)`, `(assigned_user_id, pipeline_stage)`.
 `id` · `full_name` · `phone`(20, index) · `email` · `note` · `created` · `updated`.
 
 ### `properties` — Bất động sản (kho hàng)
-`id` · `project_id` · `owner_id` · `code`(50, index) · `title` · `property_type` string · `transaction_type` enum(sale,rent) · `price` decimal(15,2) default 0 · `price_per_m2`/`area_land`/`area_usable`/`latitude`/`longitude` decimal default 0 · `bedrooms`/`bathrooms`/`floors` tinyint(0=trống) · `direction` string(east/west/... enum `directions` ở api/utils, ''=chưa chọn) · **`road_type`** varchar(20) (vị trí/đường vào: frontage/car_alley/bike_alley/walk_alley, enum `road_types` ở api/utils, ''=chưa chọn) · `legal_status` string(red_book/pink_book/sale_contract/waiting/other, ''=chưa chọn) · `furniture` string(none/basic/full, ''=chưa chọn) · `province_code`/`ward_code` int · `address` · `description` longtext · `visibility` enum(private,shared) · `status` enum(available,deposited,sold,rented,inactive) · **`cover_media_id`** unsignedBigInt default 0 (id ảnh đại diện trỏ `property_media`; 0 = tự lấy ảnh đầu tiên) · `assigned_user_id` · `trash` · `user_created` · `created` · `updated`.
-Index: `(code)`, `(assigned_user_id)`, `(status)`, `(property_type, transaction_type)`, `(province_code, ward_code)`, `(price)`.
+`id` · `project_id` · `owner_id` · `code`(50, **unique** `properties_code_unique` — phục vụ URL công khai `/p/{code}`; enforce cả ở app `PropertyApi::codeExists`, migration `database/property-unique-code.php` khử trùng + áp index) · `title` · `property_type` string · `transaction_type` enum(sale,rent) · `price` decimal(15,2) default 0 · `price_per_m2`/`area_land`/`area_usable`/`latitude`/`longitude` decimal default 0 · `bedrooms`/`bathrooms`/`floors` tinyint(0=trống) · `direction` string(east/west/... enum `directions` ở api/utils, ''=chưa chọn) · **`road_type`** varchar(20) (vị trí/đường vào: frontage/car_alley/bike_alley/walk_alley, enum `road_types` ở api/utils, ''=chưa chọn) · `legal_status` string(red_book/pink_book/sale_contract/waiting/other, ''=chưa chọn) · `furniture` string(none/basic/full, ''=chưa chọn) · `province_code`/`ward_code` int · `address` · `description` longtext · `visibility` enum(private,shared) · `status` enum(available,deposited,sold,rented,inactive) · **`cover_media_id`** unsignedBigInt default 0 (id ảnh đại diện trỏ `property_media`; 0 = tự lấy ảnh đầu tiên) · **`match_scanned`** tinyint default 0 (index `idx_prop_match_scanned` — auto-matching: 0=BĐS mới chưa quét, 1=đã quét; tick `match-scan-tick` gợi ý cho khách phù hợp) · `assigned_user_id` · `trash` · `user_created` · `created` · `updated`.
+Index: `(code)`, `(assigned_user_id)`, `(status)`, `(property_type, transaction_type)`, `(province_code, ward_code)`, `(price)`, `(match_scanned)`.
+> `match_scanned` (cả `properties` + `customer_demands`) thêm ở migration `database/matching-scan.php` (đăng ký sau `matching.php`) — guard `hasColumn`, **backfill dữ liệu cũ = 1** một lần để tick không spam hàng cũ. Xem [`features/matching.md`](features/matching.md) §Auto-matching.
 > `road_type` + `cover_media_id` thêm ở migration `database/property.php` (đăng ký sau `media.php`) — guard `hasColumn`, idempotent. Giá (`price`) lưu **VNĐ**; form BĐS nhập theo **triệu** (quy đổi ×/÷ 1e6). Ảnh đại diện: `cover_media_id>0` (ảnh đã chọn) else ảnh đầu tiên theo `sort_order` — BE giải sẵn field `thumbnail` (URL) cho list/detail; xóa đúng cover → reset về 0.
 
 ### `property_media` — Ảnh / video / tài liệu
@@ -249,7 +250,8 @@ Index: `(code)`, `(assigned_user_id)`, `(status)`, `(property_type, transaction_
 Index: `(scheduled_at, status)`, `(assigned_user_id, status)`.
 
 ### `care_templates` — Kịch bản chăm sóc
-`id` · `name` · `channel` enum(call,sms,zalo,email) · `content` (biến `{{ten_khach}}`) · `stage` · `is_active` · `created` · `updated`.
+`id` · `name` · `channel` enum(call,sms,zalo,email) · `content` (biến `{{ten_khach}}`) · `stage` · `is_active` · **`offset_days`** int default 0 (chuỗi chăm sóc: làm bước sau N ngày) · **`auto_apply`** tinyint default 0 (1=thuộc chuỗi mặc định, tự áp cho khách mới) · **`sort_order`** int default 0 (thứ tự bước) · `created` · `updated`.
+> 3 cột `offset_days`/`auto_apply`/`sort_order` thêm ở migration `database/care-sequence.php` (đăng ký sau `crm.php`) — guard `hasColumn`, idempotent. Khách mới → `CareSequence::applyAuto` sinh `care_schedules` cho mỗi template `auto_apply=1`. Xem [`features/care.md`](features/care.md) §Chuỗi tự động.
 
 ### `customer_transfers` — Lịch sử bàn giao khách
 `id` · `customer_id` (index) · `from_user_id` · `to_user_id` · `transferred_by` · `reason` · `created`.

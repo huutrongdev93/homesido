@@ -230,9 +230,12 @@ class UtilsApi extends Controller
         $migrations = [
             'database/database.php',
             'database/crm.php',
+            'database/care-sequence.php',
             'database/media.php',
             'database/property.php',
+            'database/property-unique-code.php',
             'database/matching.php',
+            'database/matching-scan.php',
             'database/appointment.php',
             'database/deal.php',
         ];

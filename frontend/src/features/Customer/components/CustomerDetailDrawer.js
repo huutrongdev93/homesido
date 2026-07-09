@@ -19,6 +19,7 @@ import {
 	useAddDemandMutation,
 	useUpdateDemandMutation,
 	useDeleteDemandMutation,
+	useApplyCareSequenceMutation,
 } from "~/reduxs/api/customerApiSlice";
 import {
 	useGetSuggestedPropertiesQuery,
@@ -114,6 +115,7 @@ function CustomerDetailDrawer({open, customer, stageMap = {}, tempMap = {}, onCl
 	const [updateDemand, {isLoading: updatingDemand}] = useUpdateDemandMutation();
 	const [deleteDemand] = useDeleteDemandMutation();
 	const [sendProperty, {isLoading: sendingMatch}] = useSendPropertyToCustomerMutation();
+	const [applyCareSequence, {isLoading: applyingSeq}] = useApplyCareSequenceMutation();
 
 	const [openCare, setOpenCare] = useState(false);
 	const [openComplete, setOpenComplete] = useState(null);   // care đang hoàn thành
@@ -151,6 +153,26 @@ function CustomerDetailDrawer({open, customer, stageMap = {}, tempMap = {}, onCl
 						notification.success({message: 'Thành công', description: 'Đã hủy lịch chăm'});
 					} catch (e) {
 						notification.error({message: 'Lỗi', description: rtkErrorMessage(e, 'Hủy thất bại')});
+						return Promise.reject();
+					}
+				},
+			});
+		},
+		applySequence: () => {
+			modal.confirm({
+				title: 'Áp kịch bản chăm sóc',
+				content: 'Tự tạo chuỗi lịch chăm sóc mặc định (các kịch bản "tự áp") cho khách này?',
+				okText: 'Áp', cancelText: 'Đóng',
+				onOk: async () => {
+					try {
+						const res = await applyCareSequence(id).unwrap();
+						const n = res?.data?.created ?? res?.created ?? 0;
+						notification.success({
+							message: 'Thành công',
+							description: n > 0 ? `Đã tạo ${n} lịch chăm sóc từ kịch bản` : 'Chưa cấu hình kịch bản "tự áp" nào',
+						});
+					} catch (e) {
+						notification.error({message: 'Lỗi', description: rtkErrorMessage(e, 'Áp kịch bản thất bại')});
 						return Promise.reject();
 					}
 				},
@@ -313,9 +335,14 @@ function CustomerDetailDrawer({open, customer, stageMap = {}, tempMap = {}, onCl
 						<div className={style.sectionHead}>
 							<h4><FontAwesomeIcon icon="fa-light fa-calendar-heart" /> Lịch chăm sóc</h4>
 							{canEdit && (
-								<Button small primary leftIcon={<FontAwesomeIcon icon="fa-light fa-plus" />} onClick={() => setOpenCare(true)}>
-									Đặt lịch
-								</Button>
+								<span style={{display: 'flex', gap: 8}}>
+									<Button small loading={applyingSeq} leftIcon={<FontAwesomeIcon icon="fa-light fa-wand-magic-sparkles" />} onClick={events.applySequence}>
+										Áp kịch bản
+									</Button>
+									<Button small primary leftIcon={<FontAwesomeIcon icon="fa-light fa-plus" />} onClick={() => setOpenCare(true)}>
+										Đặt lịch
+									</Button>
+								</span>
 							)}
 						</div>
 						{cares.length === 0

@@ -19,7 +19,10 @@ use App\Services\Care\CareReminder;
 use App\Services\Care\ColdDetector;
 use App\Services\Care\CustomerRelease;
 use App\Services\Customer\LeadScorer;
+use App\Services\Deal\DealStaleWatcher;
+use App\Services\Matching\MatchScanner;
 use App\Services\Notification\PushQueue;
+use App\Services\Property\PropertyStaleWatcher;
 use Illuminate\Console\Scheduling\Schedule;
 use SkillDo\Log\Log;
 
@@ -163,3 +166,76 @@ app(Schedule::class)->call(function () {
         ]);
     }
 })->dailyAt('02:00')->name('lead-score-tick');
+
+/**
+ * Tick AUTO-MATCHING (mỗi phút). Quét BĐS mới / nhu cầu mới (cờ match_scanned=0), so khớp on-the-fly
+ * bằng MatchEngine rồi báo DIGEST cho sales phụ trách khách ("có BĐS mới khớp khách của bạn" /
+ * "khách của bạn vừa có BĐS phù hợp"), đánh dấu đã quét. Cột chưa migrate → thoát êm.
+ * Xem App\Services\Matching\MatchScanner.
+ */
+app(Schedule::class)->call(function () {
+
+    try
+    {
+        $summary = (new MatchScanner())->tick();
+
+        if (array_sum($summary) > 0)
+        {
+            Log::info('Match scan tick', $summary);
+        }
+    }
+    catch (\Throwable $e)
+    {
+        Log::error('Match scan tick error: ' . $e->getMessage(), [
+            'trace' => $e->getTraceAsString(),
+        ]);
+    }
+})->everyMinute()->name('match-scan-tick');
+
+/**
+ * Tick cảnh báo GIAO DỊCH TREO (hằng ngày 08:00). Deal đang mở (deposit/contract) quá
+ * DEAL_STALE_DAYS ngày (mặc định 7) không cập nhật → digest sendUnique cho sales phụ trách.
+ * Xem App\Services\Deal\DealStaleWatcher.
+ */
+app(Schedule::class)->call(function () {
+
+    try
+    {
+        $summary = (new DealStaleWatcher())->tick();
+
+        if (array_sum($summary) > 0)
+        {
+            Log::info('Deal stale tick', $summary);
+        }
+    }
+    catch (\Throwable $e)
+    {
+        Log::error('Deal stale tick error: ' . $e->getMessage(), [
+            'trace' => $e->getTraceAsString(),
+        ]);
+    }
+})->dailyAt('08:00')->name('deal-stale-tick');
+
+/**
+ * Tick cảnh báo BĐS TỒN KHO LÂU (hằng ngày 08:00). BĐS còn hàng (available) quá
+ * PROPERTY_STALE_DAYS ngày (mặc định 30) không cập nhật → digest sendUnique cho sales phụ trách.
+ * Xem App\Services\Property\PropertyStaleWatcher.
+ */
+app(Schedule::class)->call(function () {
+
+    try
+    {
+        $summary = (new PropertyStaleWatcher())->tick();
+
+        if (array_sum($summary) > 0)
+        {
+            Log::info('Property stale tick', $summary);
+        }
+    }
+    catch (\Throwable $e)
+    {
+        Log::error('Property stale tick error: ' . $e->getMessage(), [
+            'trace' => $e->getTraceAsString(),
+        ]);
+    }
+})->dailyAt('08:00')->name('property-stale-tick');

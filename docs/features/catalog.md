@@ -10,7 +10,7 @@ Chăm sóc). Mỗi danh mục: **đọc** mở cho view-cap tương ứng (để
 ```
 Cấu hình danh mục (Catalog)
 ├─ FE  src/features/Catalog/pages/Catalog.js                 # trang Cấu hình: antd Tabs, mỗi tab 1 CatalogManager (cấu hình cột + field)
-│  ├─ src/features/Catalog/components/CatalogManager.js      # generic: bảng + modal thêm/sửa ĐỘNG theo `fields` (text/textarea/select/switch); nhận hooks CRUD qua props. Nội dung mỗi tab bọc `.app-card` (nền trắng nổi trên canvas xám)
+│  ├─ src/features/Catalog/components/CatalogManager.js      # generic: bảng + modal thêm/sửa ĐỘNG theo `fields` (text/textarea/select/switch/**number**); nhận hooks CRUD qua props. Nội dung mỗi tab bọc `.app-card` (nền trắng nổi trên canvas xám)
 │  ├─ src/features/Catalog/style/Catalog.module.scss         # tabBar + rowActions/iconBtn
 │  ├─ src/reduxs/api/catalogApiSlice.js                      # 4 danh mục × (get/add/update/delete); tags LeadSource/Project/PropertyOwner/CareTemplate
 │  ├─ src/reduxs/api/apiSlice.js                             # 4 tag mới trong tagTypes
@@ -44,6 +44,10 @@ Cấu hình danh mục (Catalog)
 - **Persistence đã có sẵn từ trước** (không phải thêm ở bước này): `CustomerApi.collectInput` đọc
   `lead_source_id`; `PropertyApi.collectInput` đọc `project_id`/`owner_id`; `CareApi.add` đọc
   `care_template_id`. Bước này chỉ THÊM select ở FE + prefill.
+- **Kịch bản chăm sóc (GĐ3 — chuỗi tự động)**: tab này có thêm field `auto_apply` (switch), `offset_days`
+  (number — làm sau N ngày), `sort_order` (number). Template `auto_apply=1` → thuộc **chuỗi chăm sóc mặc định**
+  tự áp cho khách mới (`CareSequence`, xem [care.md](care.md) §Chuỗi tự động). Vì vậy CatalogManager được bổ sung
+  `type:'number'`.
 - **Kịch bản chăm sóc**: chọn kịch bản trong CareFormModal / CareCompleteModal → prefill ô nội dung
   bằng `content` của kịch bản, thay biến `{{ten_khach}}` = tên khách; đồng thời set "Hình thức" theo
   `channel` của kịch bản (nếu là care type hợp lệ). CareCompleteModal cũng bổ sung ô **"Nội dung lịch

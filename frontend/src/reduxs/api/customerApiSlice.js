@@ -71,6 +71,11 @@ export const customerApiSlice = apiSlice.injectEndpoints({
 			query: ({customerId, id}) => ({url: `customer/${customerId}/demands/${id}`, method: 'delete'}),
 			invalidatesTags: ['Demand'],
 		}),
+		// Áp chuỗi kịch bản chăm sóc mặc định (care_templates auto_apply) cho khách → sinh lịch chăm.
+		applyCareSequence: builder.mutation({
+			query: (id) => ({url: `customer/${id}/apply-care-sequence`, method: 'post'}),
+			invalidatesTags: ['Care'],
+		}),
 	}),
 });
 
@@ -87,4 +92,5 @@ export const {
 	useAddDemandMutation,
 	useUpdateDemandMutation,
 	useDeleteDemandMutation,
+	useApplyCareSequenceMutation,
 } = customerApiSlice;

@@ -142,11 +142,18 @@ class PropertyApi extends ApiController
         $data = $this->collectInput($request);
 
         $code = Str::clear((string) $request->input('code'));
-        $data['code'] = ($code !== '') ? $code : ('BDS' . strtoupper(Str::random(7)));
+        if ($code !== '' && $this->codeExists($code))
+        {
+            response()->setStatusCode(422)->setApiStatus(422)->error('Mã sản phẩm đã tồn tại, vui lòng dùng mã khác.');
+        }
+        $data['code'] = ($code !== '') ? $code : $this->generateUniqueCode();
 
         // Người tạo phụ trách; chỉ người xem-toàn-sàn được chỉ định người khác.
         $assigned = (int) $request->input('assigned_user_id');
         $data['assigned_user_id'] = ($assigned > 0 && $this->canViewAll('property_view_all')) ? $assigned : $this->userId();
+
+        // BĐS mới → chưa quét → tick match-scan-tick sẽ gợi ý cho khách phù hợp (auto-matching).
+        $data['match_scanned'] = 0;
 
         $id = Property::create($data);
 
@@ -181,6 +188,10 @@ class PropertyApi extends ApiController
         $code = Str::clear((string) $request->input('code'));
         if ($code !== '')
         {
+            if ($this->codeExists($code, (int) $property->id))
+            {
+                response()->setStatusCode(422)->setApiStatus(422)->error('Mã sản phẩm đã tồn tại, vui lòng dùng mã khác.');
+            }
             $data['code'] = $code;
         }
 
@@ -554,6 +565,32 @@ class PropertyApi extends ApiController
         }
 
         return $property;
+    }
+
+    /**
+     * Mã đã được BĐS khác dùng chưa? Tính CẢ bản đã xóa mềm để khớp UNIQUE index ở DB
+     * (index tính toàn bộ hàng, gồm trash). `$exceptId`: bỏ qua chính nó khi cập nhật.
+     */
+    protected function codeExists(string $code, int $exceptId = 0): bool
+    {
+        $query = Property::withTrashed()->where('code', $code);
+
+        if ($exceptId > 0)
+        {
+            $query->where('id', '!=', $exceptId);
+        }
+
+        return (int) $query->count() > 0;
+    }
+
+    /** Sinh mã `BDS` + 7 ký tự ngẫu nhiên, lặp đến khi chưa trùng (kể cả bản đã xóa mềm). */
+    protected function generateUniqueCode(): string
+    {
+        do {
+            $code = 'BDS' . strtoupper(Str::random(7));
+        } while ($this->codeExists($code));
+
+        return $code;
     }
 
     /** Gom + làm sạch input cho tạo/sửa (không gồm code/assigned_user_id — xử lý riêng). */

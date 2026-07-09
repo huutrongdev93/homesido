@@ -80,6 +80,18 @@ function PropertyDetailPanel({property, canEdit, onEdit, onMedia}) {
 	const [sendProperty, {isLoading: sendingMatch}] = useSendPropertyToCustomerMutation();
 	const [send, setSend] = useState(null);   // {customerId, demand_id, subtitle} | null
 
+	// Copy link công khai của BĐS (gửi khách xem, không cần đăng nhập) → /p/{code}.
+	const copyPublicLink = async () => {
+		const url = window.location.origin + (process.env.REACT_APP_HOMEPAGE || '') + '/p/' + encodeURIComponent(p.code || '');
+		try {
+			await navigator.clipboard.writeText(url);
+			notification.success({message: 'Đã copy link', description: 'Link công khai đã sao chép, gửi cho khách xem.'});
+		} catch (e) {
+			// Trình duyệt chặn clipboard (không HTTPS…) → hiện link để copy tay.
+			notification.info({message: 'Link công khai', description: url});
+		}
+	};
+
 	const submitSend = async (note) => {
 		try {
 			await sendProperty({customerId: send.customerId, propertyId: property.id, demand_id: send.demand_id || 0, note}).unwrap();
@@ -159,6 +171,12 @@ function PropertyDetailPanel({property, canEdit, onEdit, onMedia}) {
 						<button type="button" className={style.dBtn} onClick={() => onMedia(property)}>
 							<FontAwesomeIcon icon="fa-light fa-images" /> Ảnh / video
 						</button>
+						<button type="button" className={style.dBtn} onClick={copyPublicLink} title="Copy link gửi khách xem (không cần đăng nhập)">
+							<FontAwesomeIcon icon="fa-light fa-share-nodes" /> Copy link công khai
+						</button>
+						<a className={style.dBtn} href={`${process.env.REACT_APP_HOMEPAGE || ''}/p/${encodeURIComponent(p.code || '')}`} target="_blank" rel="noreferrer" title="Mở trang công khai">
+							<FontAwesomeIcon icon="fa-light fa-arrow-up-right-from-square" /> Xem trang
+						</a>
 					</div>
 				</div>
 			</div>

@@ -7,7 +7,8 @@ lịch tiếp. Gồm cả **timeline tương tác** của khách (xem/ghi trong 
 Có **tick nền**: nhắc lịch đến hạn + phát hiện khách nguội + **auto-release** khách quá hạn khóa
 (xem mục Tác vụ nền dưới). **Kịch bản chăm sóc** (care_templates) đã có CRUD + nối vào form: chọn
 kịch bản trong CareFormModal/CareCompleteModal → prefill nội dung (thay `{{ten_khach}}`) — xem
-[catalog.md](catalog.md).
+[catalog.md](catalog.md). **GĐ3:** kịch bản có thể đánh dấu `auto_apply` + `offset_days` để **tự sinh
+chuỗi lịch chăm cho khách mới** (xem §Chuỗi chăm sóc tự động dưới).
 
 ## Bản đồ file (front-to-back)
 
@@ -27,7 +28,10 @@ Chăm sóc chủ động (Care)
 │  └─ src/context/AppProvider.js                                  # appData.care.{care_types, interaction_types}
 └─ BE  routes/api.php  (prefix api/care + api/customer/{id}/interactions, middleware jwt)
        ├─ app/Controllers/Api/CareApi.php                         # index(?customer_id) / today / add / complete / cancel; scope theo assigned_user_id
-       ├─ app/Controllers/Api/CustomerApi.php                     # interactions() / addInteraction() + touchInteraction() (cập nhật last_interaction_at, gỡ cờ nguội)
+       ├─ app/Controllers/Api/CustomerApi.php                     # interactions() / addInteraction() + touchInteraction(); add() hook CareSequence::applyAuto (khách mới); applyCareSequence() (áp thủ công)
+       ├─ app/Services/Care/CareSequence.php                      # GĐ3: applyAuto — sinh care_schedules từ care_templates auto_apply=1 (offset_days, thay {{ten_khach}}, type=channel)
+       ├─ database/care-sequence.php                              # migration cột offset_days/auto_apply/sort_order cho care_templates
+       ├─ FE src/features/Catalog/* + CatalogManager (type 'number') # cấu hình kịch bản: offset_days/auto_apply/sort_order; nút "Áp kịch bản" ở CustomerDetailDrawer (useApplyCareSequenceMutation)
        ├─ app/Controllers/Api/UtilsApi.php::index                 # enum care.* cho FE
        ├─ app/Models/CareSchedule.php + CustomerInteraction.php
        └─ bảng DB: care_schedules, customer_interactions (database/crm.php)
@@ -49,6 +53,24 @@ Chăm sóc chủ động (Care)
 3. **Cập nhật khách** qua `Customer::touch()`: `last_interaction_at=now`, `is_cold_flagged=0` (gỡ cờ nguội), **gia hạn khóa** `locked_until=now+CUSTOMER_LOCK_DAYS` (đang chăm tích cực → không bị auto-release, xem [customer.md](customer.md)).
 4. Nếu có `next_scheduled_at` → tạo lịch chăm mới (pending).
 → FE invalidate `['Care','Interaction','Customer']` để mọi nơi refetch.
+
+## Chuỗi chăm sóc tự động (GĐ3 — tự động hóa)
+
+**Bài toán:** trước đây mỗi lịch chăm phải đặt tay. Nay 1 "kịch bản mặc định" tự sinh cả chuỗi lịch cho khách mới.
+
+- **Mô hình (mô hình 1 — chuỗi mặc định đơn):** mở rộng `care_templates` bằng 3 cột `offset_days` (làm sau N ngày),
+  `auto_apply` (1=thuộc chuỗi mặc định), `sort_order`. Mỗi template `auto_apply=1` = 1 **bước**. Không thêm bảng
+  mới, không cột trên `customers` — tái dùng 100% UI Catalog (thêm `type:'number'` cho CatalogManager).
+- **Sinh chuỗi:** `App\Services\Care\CareSequence::applyAuto($customerId)` — duyệt template `is_active=1 & auto_apply=1`
+  (order `sort_order,offset_days`), mỗi bước tạo 1 `care_schedules`: `scheduled_at = now + offset_days`, `content`
+  thay `{{ten_khach}}`, `type = channel`, `care_template_id` = template, `status=pending`, giao cho sales của khách.
+- **Kích hoạt:** (1) tự động — hook cuối `CustomerApi::add` (khách mới, fire-and-forget); (2) thủ công — `POST
+  api/customer/{id}/apply-care-sequence` (cap `customer_edit`) qua nút **"Áp kịch bản"** ở drawer khách (cho khách cũ /
+  khi đổi kịch bản). Lịch sinh ra được `care-reminder-tick` nhắc như thường.
+- **An toàn:** chưa migrate cột `auto_apply` → `applyAuto` trả 0 (chưa bật). Không có template `auto_apply` nào → không sinh gì.
+- **Giới hạn có chủ đích:** chỉ **1 chuỗi mặc định chung** (tập template `auto_apply`), chưa phải nhiều kịch bản có tên
+  gán theo loại khách. Muốn đa kịch bản: cần bảng `care_sequences` + `care_sequence_steps` + `customers.care_sequence_id`
+  + UI soạn bước (GĐ3.1).
 
 ## Tác vụ nền (Schedule — Bước 6)
 

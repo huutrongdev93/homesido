@@ -10,7 +10,7 @@ theo user: xem [media.md](media.md)** — upload/xóa/sắp xếp qua modal riê
 ```
 Bất động sản (Property)
 ├─ FE  src/features/Property/pages/Property.js              # list: antd Table + toolbar + phân trang; fmtPrice (tỷ/tr); can{add,edit,delete} + events. Expandable row (click hàng → chi tiết inline): expandedRowKeys controlled 1-hàng, expandRowByClick + showExpandColumn:false; cột actions stopPropagation
-│  ├─ src/features/Property/components/PropertyDetailPanel.js # panel chi tiết inline (mô phỏng thiết kế): header (badge+tiêu đề+giá cam+nút Sửa/Ảnh) · THÔNG SỐ (spec cards động) · THƯ VIỆN (grid ảnh/video/tài liệu read-only, click mở tab mới; dùng lại .mediaGrid + formatBytes của PropertyMediaModal) · VỊ TRÍ (địa chỉ + tag phường/tỉnh). Tự fetch useGetPropertyQuery (media+field), tên tỉnh/phường tra locationApiSlice
+│  ├─ src/features/Property/components/PropertyDetailPanel.js # panel chi tiết inline (mô phỏng thiết kế): header (badge+tiêu đề+giá cam+nút Sửa/Ảnh + "Copy link công khai"/"Xem trang" → /p/{code}, xem [public-listing.md](public-listing.md)) · THÔNG SỐ (spec cards động) · THƯ VIỆN (grid ảnh/video/tài liệu read-only, click mở tab mới; dùng lại .mediaGrid + formatBytes của PropertyMediaModal) · VỊ TRÍ (địa chỉ + tag phường/tỉnh). Tự fetch useGetPropertyQuery (media+field), tên tỉnh/phường tra locationApiSlice
 │  ├─ src/features/Property/components/PropertyFormModal.js # form thêm/sửa: ModalForm + RHF + yup; cascade tỉnh→phường; select "Dự án" (project_id) + "Chủ nhà" (owner_id) — danh mục ở [catalog.md](catalog.md). Giá nhập theo TRIỆU (InputPriceField, quy đổi ×/÷1e6 sang VNĐ); Hướng + Đường vào (road_type) = SelectField (enum directions/road_types); các bộ 3 field (Hình thức/Trạng thái/Phạm vi · Giá/DT đất/DT sử dụng · PN/PT/Tầng) gộp 1 hàng qua .mform-row-3
 │  ├─ src/features/Property/style/Property.module.scss      # style toolbar (copy từ Customer)
 │  ├─ src/reduxs/api/propertyApiSlice.js                    # RTK Query CRUD; tags ['Property']
@@ -19,12 +19,15 @@ Bất động sản (Property)
 │  ├─ src/routes/PrivateRoutes.js                           # route /properties cap 'property_view' (DefaultLayout)
 │  ├─ src/layout/Sidebar/NavBarData.js                      # menu "Kinh doanh" → "Bất động sản", gate useCan('property_view')
 │  └─ src/context/AppProvider.js                            # appData.property.{property_types,transaction_types,statuses,visibilities,legal_statuses,furnitures,directions,road_types} (enum tĩnh)
-└─ BE  routes/api.php  (prefix api/property, middleware jwt) + (prefix api/location, PUBLIC)
+├─ CÔNG KHAI (không đăng nhập): route /p/:code → xem [public-listing.md](public-listing.md)
+└─ BE  routes/api.php  (prefix api/property, middleware jwt) + (prefix api/location, PUBLIC) + (prefix api/public, PUBLIC → PublicPropertyApi)
        ├─ app/Controllers/Api/PropertyApi.php               # index/detail/add/update/destroy; scope kho-chung; findViewable vs findOwned; auto-gen code; collectInput/transform(+thumbnail); setCover/effectiveCoverId (thumbnail lô: PropertyMediaService::thumbnails)
        ├─ app/Controllers/Api/ApiController.php             # BASE: paging/respondList + requireCap/canViewAll
        ├─ app/Controllers/Api/LocationApi.php               # provinces/wards qua SkillDo Cms Location2 (tỉnh→phường 2 cấp, int code)
        ├─ app/Controllers/Api/UtilsApi.php::index           # enum property.* cho FE
        ├─ app/Roles/RoleCapabilitiesProperty.php            # cap: property_view/add/edit/delete/view_all
+       ├─ app/Console/schedule.php                          # tick 'property-stale-tick' (dailyAt 08:00) — cảnh báo BĐS tồn kho lâu; + 'match-scan-tick' auto-matching (xem [matching.md](matching.md))
+       ├─ app/Services/Property/PropertyStaleWatcher.php    # tick: available & updated < now-PROPERTY_STALE_DAYS → digest sendUnique cho sales phụ trách
        ├─ app/Models/Property.php (SoftDeletes) + PropertyMedia.php
        └─ bảng DB: properties, property_media (database/crm.php)
 ```
@@ -41,6 +44,14 @@ Bất động sản (Property)
   Query list: `where(assigned_user_id=me OR visibility='shared')` khi không có view_all.
 - **Sửa/Xóa** (`findOwned`): CHỈ hàng của mình (hoặc view_all). Hàng shared của người khác xem được nhưng không sửa.
 
+## Tick nền — `property-stale-tick` (cảnh báo BĐS tồn kho lâu, GĐ2 tự động hóa)
+
+`PropertyStaleWatcher::tick()` (dailyAt 08:00): quét BĐS **còn hàng** (`status=available`) mà `updated` quá
+**`PROPERTY_STALE_DAYS`** ngày (env, mặc định 30) → gom **digest theo sales phụ trách** →
+`Notifier::sendUnique('warning','Bất động sản tồn kho lâu', …, '/properties')` (gợi ý đẩy giá/làm mới tin;
+không spam mỗi ngày). BĐS kho chung chưa có người phụ trách (`assigned_user_id=0`) → bỏ qua. Bảng chưa
+migrate → thoát êm.
+
 ## Gotcha
 
 - ⚠️ **`Str::clear(null)` trả `null` (KHÔNG phải `''`), và `Builder::update()` KHÔNG chạy cleaner
@@ -51,7 +62,11 @@ Bất động sản (Property)
   `$next($request)` trong `try/catch` → mọi exception từ controller thành 401 "Invalid token". Khi gặp
   401 lạ trên route đã có token hợp lệ, **đọc `D:/wamp/logs/php_error.log`** (dòng `[JwtLoginAs] ...`)
   để lấy exception thật, đừng tưởng lỗi token.
-- **Auto-gen `code`**: bỏ trống → sinh `BDS` + 7 ký tự random (không unique cứng ở DB, chấp nhận).
+- **`code` DUY NHẤT** (phục vụ URL công khai `/p/{code}`, xem [public-listing.md](public-listing.md)):
+  bỏ trống → auto-gen `BDS` + 7 ký tự random, **lặp đến khi chưa trùng**; nhập tay trùng mã (create/update)
+  → **422 "Mã sản phẩm đã tồn tại"**. Kiểm tra `codeExists()` tính **cả bản đã xóa mềm** (`withTrashed`)
+  để khớp **UNIQUE index `properties_code_unique`** (migration `database/property-unique-code.php`, quét
+  toàn bộ hàng gồm trash). Migration tự khử trùng mã cũ trước khi áp index.
 - **Giá lưu VNĐ, nhập TRIỆU**: DB `price` là VNĐ (fmtPrice chia 1e9/1e6). Form nhập theo triệu → reset chia
   `/1e6`, submit nhân `*1e6`. Sửa unit ở form phải đổi cả 2 chiều để không lệch. **Đừng dùng `addonAfter` cho
   InputPriceField** — antd bọc InputNumber vào group-wrapper (inline-block) làm label nằm cùng hàng + viền lệch

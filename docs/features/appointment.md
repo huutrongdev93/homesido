@@ -44,7 +44,7 @@ Lịch hẹn dẫn khách (Appointment)
 - `PUT  api/appointment/{id}` — sửa (chỉ khi `pending`). Cap `appointment_edit`.
 - `PUT  api/appointment/{id}/complete` — chốt. body `{status: done|no_show, result?, result_note?}`.
   `done` → ghi `result` (interested/considering/rejected/deposited hoặc '') + tạo tương tác timeline (type `viewing`)
-  + `Customer::touch` + `LeadScorer::recompute`. `no_show` → chỉ đánh dấu (không tính tương tác). Cap `appointment_edit`.
+  + `Customer::touch` + `LeadScorer::recompute` + **AUTO FOLLOW-UP** (xem dưới). `no_show` → chỉ đánh dấu (không tính tương tác). Cap `appointment_edit`.
 - `DELETE api/appointment/{id}` — hủy (`status=canceled`; chặn nếu đã `done`). Cap `appointment_delete`.
 
 ## Tick nền — `appointment-reminder-tick` (mỗi phút)
@@ -52,6 +52,15 @@ Lịch hẹn dẫn khách (Appointment)
 `AppointmentReminder::tick()`: quét buổi hẹn `pending` có `scheduled_at ∈ [now, now + cửa sổ]` & `reminded_at`
 null → `Notifier::send` cho sales phụ trách ("Buổi hẹn với <khách> lúc HH:mm") + set `reminded_at` (mỗi buổi hẹn
 nhắc **1 lần**, không spam). Cửa sổ = env `APPOINTMENT_REMIND_MINUTES` (mặc định 60'). Bảng chưa migrate → thoát êm.
+
+## Auto follow-up sau buổi xem (GĐ2 — tự động hóa)
+
+Chốt buổi hẹn `done` (có gắn khách) → `AppointmentApi::complete` **tự tạo 1 lịch chăm sóc**
+(`CareSchedule::create`) hẹn **+1 ngày** ("Hỏi cảm nhận của khách sau buổi dẫn xem…", `type=call`,
+`status=pending`, giao cho sales phụ trách buổi hẹn) — sales không phải nhớ đặt lịch tay. Khi đến hạn,
+`care-reminder-tick` (xem [care.md](care.md)) sẽ nhắc như mọi lịch chăm. **Bỏ qua** khi `result=deposited`
+(đã cọc → chuyển sang giao dịch). Fire-and-forget: lỗi tạo lịch được nuốt, KHÔNG làm hỏng việc chốt hẹn.
+Cần import `App\Models\CareSchedule` trong `AppointmentApi`.
 
 ## Gotcha
 

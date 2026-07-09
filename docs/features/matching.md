@@ -25,6 +25,9 @@ Matching (GĐ2)
 │  └─ src/context/AppProvider.js                             # appData.matching.statuses (enum tĩnh: sent/interested/rejected)
 └─ BE  routes/api.php  (route lồng trong prefix api/customer + api/property, middleware jwt)
        ├─ app/Services/Matching/MatchEngine.php              # HÀM THUẦN: matchQueryForDemand (query kho theo 1 nhu cầu) + matchesProperty (1 BĐS thỏa 1 nhu cầu?) + score/reasons (0–100)
+       ├─ app/Services/Matching/MatchScanner.php             # AUTO-MATCHING tick: quét BĐS/nhu cầu cờ match_scanned=0 → digest Notifier cho sales → set cờ 1 (xem §Auto-matching)
+       ├─ app/Console/schedule.php                           # đăng ký tick 'match-scan-tick' (everyMinute)
+       ├─ database/matching-scan.php                         # migration cột match_scanned (properties + customer_demands) + backfill hàng cũ=1
        ├─ app/Controllers/Api/CustomerApi.php                # matchProperties / matches (lịch sử) / sendMatch / updateMatchStatus + helpers demandsToMatch/bestScoreFor/transformMatchProperty (kèm `thumbnail` — ảnh đại diện BĐS)
        ├─ app/Services/Storage/PropertyMediaService.php      # thumbnails($rows) — giải ảnh đại diện lô BĐS (dùng chung list BĐS + gợi ý matching); xem [media.md](media.md)
        ├─ app/Controllers/Api/PropertyApi.php                # matchCustomers (gợi ý khách cho BĐS)
@@ -34,6 +37,29 @@ Matching (GĐ2)
        ├─ app/Models/PropertyCustomerMatch.php               # bảng property_customer_matches
        └─ bảng DB: property_customer_matches (database/matching.php)
 ```
+
+## Auto-matching (tick nền — chủ động đẩy cơ hội)
+
+Bản gốc matching là **kéo** (sales tự mở tab dò). Auto-matching biến thành **đẩy**: khi có BĐS/nhu cầu
+mới, tick nền tự so khớp và **báo cho sales phụ trách khách** — không thao tác tay.
+
+- **Cơ chế:** cờ int `match_scanned` trên `properties` + `customer_demands` (0=chưa quét, 1=đã quét;
+  KHÔNG dùng datetime NULL vì base Model tự điền `''` cho cột không truyền). Điểm ghi đặt cờ 0:
+  `PropertyApi::add` (BĐS mới), `CustomerApi::addDemand` (nhu cầu mới), `CustomerApi::updateDemand`
+  (đổi tiêu chí → quét lại). Tick `match-scan-tick` (`MatchScanner::tick`, mỗi phút) nhặt cờ 0, so
+  khớp **tái dùng `MatchEngine`** (on-the-fly), rồi set cờ 1.
+- **2 chiều + thông báo digest** (gom theo sales, 1 thông báo/sales/lô/chiều, `Notifier::send` type `info`, link `/matching`):
+  - BĐS mới `available` khớp nhu cầu active → báo sales **phụ trách các khách** khớp: *"Có N BĐS mới khớp khách của bạn"*.
+  - Nhu cầu mới/đổi có BĐS khớp trong kho (của sales + kho chung `shared`) → báo sales phụ trách khách: *"N khách của bạn vừa có BĐS phù hợp"*.
+- **Chống spam/tải:** mỗi bản ghi quét đúng 1 lần (cờ→1) nên không cần `sendUnique`; lô giới hạn
+  `PROPERTY_BATCH=100` / `DEMAND_BATCH=200`; chiều nhu cầu chỉ báo khách có sales (`assigned_user_id>0`,
+  bỏ qua kho chung). Migration **backfill toàn bộ dữ liệu cũ = 1** (guard `hasColumn`, chạy 1 lần) để
+  lần bật đầu tiên không bắn thông báo hàng loạt cho kho/nhu cầu hiện có.
+- **Giới hạn có chủ đích (GĐ2.1):** chỉ BĐS/nhu cầu **mới** kích hoạt. **Sửa BĐS (kể cả chuyển sang
+  `available`) KHÔNG quét lại** (tránh churn thông báo mỗi lần sửa) — nếu cần, nâng cấp bằng cách reset
+  cờ khi `status` chuyển vào `available` ở `PropertyApi::update`. Khách ở kho chung (chưa có sales) không
+  được báo cho tới khi có người nhận.
+- **Bật:** cần chạy `GET api/utils/database` (áp `database/matching-scan.php`) + cron gọi `schedule-run` mỗi phút.
 
 ## Cap / Route
 

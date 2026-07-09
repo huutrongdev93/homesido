@@ -10,13 +10,17 @@ import style from "../style/Catalog.module.scss";
 
 /** Giá trị mặc định theo kiểu field (form thêm mới). */
 const emptyFor = (fields) => fields.reduce((acc, f) => {
-	acc[f.name] = f.type === 'switch' ? (f.default ?? true) : (f.type === 'select' ? undefined : '');
+	acc[f.name] = f.type === 'switch' ? (f.default ?? true)
+		: f.type === 'number' ? (f.default ?? 0)
+		: (f.type === 'select' ? undefined : '');
 	return acc;
 }, {});
 
 /** Nạp giá trị 1 bản ghi vào form (sửa). */
 const fillFrom = (fields, item) => fields.reduce((acc, f) => {
-	acc[f.name] = f.type === 'switch' ? Boolean(item[f.name]) : (item[f.name] ?? '');
+	acc[f.name] = f.type === 'switch' ? Boolean(item[f.name])
+		: f.type === 'number' ? (item[f.name] ?? 0)
+		: (item[f.name] ?? '');
 	return acc;
 }, {});
 
@@ -131,6 +135,7 @@ function CatalogManager({title, icon, entityLabel, nameKey = 'name', columns, fi
 					<Controller key={f.name} control={control} name={f.name} render={({field}) => {
 						if (f.type === 'textarea') return <TextAreaField label={f.label} rows={f.rows || 3} errors={errors} {...field} />;
 						if (f.type === 'select') return <SelectField label={f.label} options={f.options || []} errors={errors} {...field} />;
+						if (f.type === 'number') return <InputField type="number" min={0} label={f.label} placeholder={f.placeholder} errors={errors} {...field} />;
 						if (f.type === 'switch') return (
 							<CheckBoxField label={f.label} errors={errors} name={f.name}
 								value={field.value} onChange={(e) => field.onChange(e.target.checked)}>

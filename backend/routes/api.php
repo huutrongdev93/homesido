@@ -93,6 +93,9 @@ Route::namespace('App\Controllers\Api')
         Route::post('/{id}/demands', 'CustomerApi@addDemand')->name('api.customer.demands.add');
         Route::put('/{id}/demands/{demandId}', 'CustomerApi@updateDemand')->name('api.customer.demands.update');
         Route::delete('/{id}/demands/{demandId}', 'CustomerApi@destroyDemand')->name('api.customer.demands.destroy');
+
+        // Áp chuỗi kịch bản chăm sóc mặc định (auto_apply) cho khách hiện có.
+        Route::post('/{id}/apply-care-sequence', 'CustomerApi@applyCareSequence')->name('api.customer.applyCareSequence');
         // Matching: gợi ý BĐS cho khách + gửi SP (ghi lịch sử + timeline). Cap matching_view/matching_send.
         Route::get('/{id}/match-properties', 'CustomerApi@matchProperties')->name('api.customer.matchProperties');
         Route::get('/{id}/matches', 'CustomerApi@matches')->name('api.customer.matches');
@@ -258,6 +261,20 @@ Route::namespace('App\Controllers\Api')
     {
         Route::get('/provinces', 'LocationApi@provinces')->name('api.location.provinces');
         Route::get('/wards', 'LocationApi@wards')->name('api.location.wards');
+    });
+
+/**
+|--------------------------------------------------------------------------
+| Trang công khai BĐS — link gửi khách xem, KHÔNG cần đăng nhập (ngoài jwt)
+|--------------------------------------------------------------------------
+| Chỉ trả field tiếp thị + liên hệ NV phụ trách; không lộ dữ liệu nội bộ.
+| Xem docs/features/public-listing.md.
+*/
+Route::namespace('App\Controllers\Api')
+    ->prefix('api/public')
+    ->group(function ()
+    {
+        Route::get('/property/{code}', 'PublicPropertyApi@detail')->name('api.public.property');
     });
 
 /**

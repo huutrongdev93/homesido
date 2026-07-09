@@ -8,6 +8,7 @@ use App\Models\CustomerInteraction;
 use App\Models\CustomerTransfer;
 use App\Models\Property;
 use App\Models\PropertyCustomerMatch;
+use App\Services\Care\CareSequence;
 use App\Services\Customer\CustomerSheet;
 use App\Services\Customer\LeadScorer;
 use App\Services\Matching\MatchEngine;
@@ -133,7 +134,34 @@ class CustomerApi extends ApiController
 
         LeadScorer::recompute((int) $id);
 
+        // AUTO CARE SEQUENCE (GĐ3): khách mới → tự sinh chuỗi lịch chăm từ kịch bản mặc định
+        // (care_templates auto_apply=1). Fire-and-forget: lỗi KHÔNG làm hỏng việc tạo khách.
+        try
+        {
+            CareSequence::applyAuto((int) $id);
+        }
+        catch (\Throwable $e)
+        {
+            // Bỏ qua: chuỗi chăm sóc chỉ là tiện ích tự động.
+        }
+
         response()->success('Thêm khách hàng thành công', ['id' => (int) $id]);
+    }
+
+    /**
+     * POST api/customer/{id}/apply-care-sequence — áp CHUỖI kịch bản mặc định (care_templates
+     * auto_apply=1) cho 1 khách hiện có; tạo lịch chăm tính từ hôm nay. Cho phép áp cho khách cũ
+     * hoặc khi kịch bản thay đổi. Trả về số lịch đã tạo.
+     */
+    public function applyCareSequence(Request $request, $id): void
+    {
+        $this->requireCap('customer_edit', 'Bạn không có quyền cập nhật khách hàng.');
+
+        $customer = $this->findOwned((int) $id);
+
+        $created = CareSequence::applyAuto((int) $customer->id);
+
+        response()->success('Đã áp kịch bản chăm sóc', ['created' => $created]);
     }
 
     /**
@@ -375,6 +403,8 @@ class CustomerApi extends ApiController
 
         $data = $this->collectDemandInput($request);
         $data['customer_id'] = (int) $customer->id;
+        // Nhu cầu mới → chưa quét → tick match-scan-tick gợi ý BĐS khớp trong kho (auto-matching).
+        $data['match_scanned'] = 0;
 
         $demandId = CustomerDemand::create($data);
 
@@ -396,7 +426,10 @@ class CustomerApi extends ApiController
         $customer = $this->findOwned((int) $id);
         $demand   = $this->findDemand((int) $customer->id, (int) $demandId);
 
-        CustomerDemand::where('id', $demand->id)->update($this->collectDemandInput($request));
+        $data = $this->collectDemandInput($request);
+        // Đổi tiêu chí → quét lại để gợi ý BĐS khớp theo tiêu chí mới (auto-matching).
+        $data['match_scanned'] = 0;
+        CustomerDemand::where('id', $demand->id)->update($data);
 
         response()->success('Đã cập nhật nhu cầu', ['id' => (int) $demand->id]);
     }

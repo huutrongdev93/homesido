@@ -140,6 +140,7 @@ Khi quét source để hiểu một chức năng, **ghi lại vào `docs/feature
 ### Feature notes index
 - [Khách hàng (Customer — Core CRM)](docs/features/customer.md) — CRUD + filter/phân trang + chống trùng SĐT + data-scope + xóa mềm; vertical slice xác lập khuôn CRUD (ApiController base, RTK Query, caps).
 - [Bất động sản (Property — Kho hàng)](docs/features/property.md) — CRUD + data-scope kho chung (shared) + địa chỉ tỉnh→phường (LocationApi) + xóa mềm; media chờ pipeline upload.
+- [Trang công khai BĐS (Public Listing)](docs/features/public-listing.md) — link `/p/{code}` gửi khách xem KHÔNG cần đăng nhập (`GET api/public/property/{code}`, ngoài jwt): gallery + đặc điểm + mô tả + bản đồ + liên hệ NV (Gọi/Zalo) + BĐS liên quan; chỉ trả field tiếp thị, không lộ dữ liệu nội bộ; nút "Copy link công khai" ở panel BĐS. Không cột/cap mới.
 - [Chăm sóc chủ động (Care + Timeline)](docs/features/care.md) — lịch chăm sóc + "Cần chăm hôm nay" + timeline tương tác (drawer chi tiết khách); hoàn thành care → tạo tương tác + cập nhật last_interaction_at. Tick nền (Bước 6) & template (Bước 8) chưa làm.
 - [Dashboard tổng hợp (Home)](docs/features/dashboard.md) — `GET api/dashboard` gộp KPI tháng + "cần chăm hôm nay" + phễu khách theo giai đoạn + kho BĐS theo trạng thái; áp data-scope; CSS bar (không thư viện chart).
 - [Danh mục phụ + Cấu hình (Catalog)](docs/features/catalog.md) — CRUD 4 danh mục (nguồn khách/dự án/chủ nhà/kịch bản) gom ở `/admin/catalog` (cap `permission`); nối select vào form Khách hàng/BĐS/Chăm sóc; CatalogManager generic (form động theo `fields`).

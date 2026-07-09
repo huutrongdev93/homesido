@@ -93,11 +93,15 @@ class CareTemplateApi extends ApiController
         $active  = $request->input('is_active');
 
         return [
-            'name'      => Str::clear((string) $request->input('name')),
-            'channel'   => in_array($channel, self::CHANNELS, true) ? $channel : 'call',
-            'content'   => Str::clear((string) $request->input('content')),
-            'stage'     => Str::clear((string) $request->input('stage')),
-            'is_active' => ($active === null || $active === '') ? 1 : ((int) (bool) $active),
+            'name'        => Str::clear((string) $request->input('name')),
+            'channel'     => in_array($channel, self::CHANNELS, true) ? $channel : 'call',
+            'content'     => Str::clear((string) $request->input('content')),
+            'stage'       => Str::clear((string) $request->input('stage')),
+            'is_active'   => ($active === null || $active === '') ? 1 : ((int) (bool) $active),
+            // Chuỗi chăm sóc tự động (GĐ3): bước sau N ngày + cờ thuộc chuỗi mặc định + thứ tự.
+            'offset_days' => max(0, (int) $request->input('offset_days')),
+            'auto_apply'  => (int) (bool) $request->input('auto_apply'),
+            'sort_order'  => max(0, (int) $request->input('sort_order')),
         ];
     }
 
@@ -110,6 +114,9 @@ class CareTemplateApi extends ApiController
             'content'   => (string) ($row->content ?? ''),
             'stage'     => (string) ($row->stage ?? ''),
             'is_active' => (int) $row->is_active === 1,
+            'offset_days' => (int) ($row->offset_days ?? 0),
+            'auto_apply'  => (int) ($row->auto_apply ?? 0) === 1,
+            'sort_order'  => (int) ($row->sort_order ?? 0),
         ];
     }
 }

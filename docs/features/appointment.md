@@ -10,7 +10,7 @@ Chốt `done` → tạo 1 tương tác **"Dẫn xem nhà"** vào timeline khách
 ```
 Lịch hẹn dẫn khách (Appointment)
 ├─ FE  src/features/Appointment/pages/Appointment.js                 # trang /appointments: list phân trang + lọc trạng thái (SelectField) + nút Tạo; mỗi dòng Chốt/Sửa/Hủy theo status; tag trạng thái + tag kết quả (done)
-│  ├─ src/features/Appointment/components/AppointmentFormModal.js    # tạo/sửa: DebounceSelect khách + DebounceSelect BĐS (tuỳ chọn) + DateField(showTime) + NumberField thời lượng + InputField địa điểm + TextAreaField ghi chú; sửa nạp sẵn khách/BĐS qua optionsDefault
+│  ├─ src/features/Appointment/components/AppointmentFormModal.js    # tạo/sửa (width 900, 2 cột): form trái (DebounceSelect khách + quick-pick 5 BĐS gợi ý (Matching) + DebounceSelect BĐS tuỳ chọn + DateField(showTime) + NumberField thời lượng + InputField địa điểm + TextAreaField ghi chú) + panel phải khi đã chọn khách (info khách + "BĐS đã xem" từ buổi hẹn `done`, nút chọn lại 1 căn cũ); sửa nạp sẵn khách/BĐS qua optionsDefault
 │  ├─ src/features/Appointment/components/AppointmentCompleteModal.js # chốt: SelectField "Đã dẫn xem"/"Khách không đến" + (khi done) SelectField kết quả (results) + ghi chú
 │  ├─ src/features/Appointment/style/Appointment.module.scss         # .filterBar + .rowActions
 │  ├─ src/reduxs/api/appointmentApiSlice.js                          # getAppointments(list, params)/add/update/complete/cancel; tag 'Appointment'; complete invalidate 'Appointment','Interaction','Customer'
@@ -61,6 +61,26 @@ Chốt buổi hẹn `done` (có gắn khách) → `AppointmentApi::complete` **t
 `care-reminder-tick` (xem [care.md](care.md)) sẽ nhắc như mọi lịch chăm. **Bỏ qua** khi `result=deposited`
 (đã cọc → chuyển sang giao dịch). Fire-and-forget: lỗi tạo lịch được nuốt, KHÔNG làm hỏng việc chốt hẹn.
 Cần import `App\Models\CareSchedule` trong `AppointmentApi`.
+
+## Panel "BĐS đã xem" + quick-pick BĐS gợi ý (trong form tạo/sửa)
+
+`AppointmentFormModal` widen (900) + layout 2 cột khi mở — không đổi API/DB, chỉ tái dùng dữ liệu sẵn
+có ở FE để trả lời "khách này đã xem những BĐS nào" ngay trong lúc đặt lịch mới:
+
+- **Panel phải** (khi đã chọn khách qua `useWatch` theo dõi `customer_id`): info khách (`useGetCustomerQuery`,
+  cap `customer_view`) + **"BĐS đã xem"** = `useGetAppointmentsQuery({customer_id, status:'done'})` (cap
+  `appointment_view`), lọc các buổi hẹn có gắn BĐS (`item.property` khác null). Mỗi dòng có nút chọn lại
+  (icon `fa-rotate`) → `setValue('property_id', ...)` để đặt lịch xem lại nhanh 1 căn cũ.
+- **Quick-pick BĐS gợi ý**: thay vì chỉ có ô `DebounceSelect` trơn, hiện tối đa 5 thẻ BĐS từ
+  `useGetSuggestedPropertiesQuery(customerId)` (tái dùng Matching, cap `matching_view`) phía trên ô select
+  — bấm thẻ để chọn nhanh; không có gợi ý (chưa có nhu cầu khớp) thì panel quick-pick tự ẩn, sale gõ tìm
+  ở `DebounceSelect` như cũ.
+- **Đồng bộ nhãn Select khi chọn qua quick-pick/nút chọn lại**: `DebounceSelect` chỉ hiện đúng nhãn cho
+  item có trong `options` hiện tại (state nội bộ nạp từ `optionsDefault`) — set giá trị `property_id`
+  bằng `setValue` (ngoài Controller) không tự có nhãn. State `propertyPicked` giữ `{value,label}` vừa
+  chọn và được đưa vào `optionsDefault` (ưu tiên hơn `propertyDefault` của chế độ sửa) để nhãn hiện đúng
+  ngay không cần gõ tìm lại.
+- Toàn bộ 3 query trên đều `skip` khi chưa chọn khách hoặc thiếu cap tương ứng — không có route/cột/cap mới.
 
 ## Gotcha
 

@@ -12,3 +12,220 @@
 	justify-content: flex-end;
 	flex-wrap: wrap;
 }
+
+/* ===== Modal tạo/sửa lịch hẹn: form 2 cột (trái = form, phải = info khách + BĐS đã xem) ===== */
+.formLayout {
+	display: flex;
+	gap: 20px;
+	align-items: flex-start;
+
+	@media (max-width: 760px) {
+		flex-direction: column;
+	}
+}
+
+.formMain {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.formSide {
+	flex: 0 0 260px;
+	border-left: 1px solid var(--border-color, #eef0f3);
+	padding-left: 20px;
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+
+	@media (max-width: 760px) {
+		flex: 1 1 auto;
+		border-left: none;
+		border-top: 1px solid var(--border-color, #eef0f3);
+		padding-left: 0;
+		padding-top: 16px;
+	}
+}
+
+.sideTitle {
+	font-size: 12.5px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: .02em;
+	color: #6b7280;
+	margin: 0 0 8px;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.sideEmpty {
+	color: #94a3b8;
+	font-size: 13px;
+	margin: 0;
+}
+
+.custName {
+	font-weight: 700;
+	font-size: 14px;
+}
+
+.custPhone {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	color: #6b7280;
+	font-size: 12.5px;
+	margin-top: 2px;
+}
+
+.custTags {
+	display: flex;
+	gap: 6px;
+	flex-wrap: wrap;
+	margin-top: 8px;
+}
+
+.viewedList {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	max-height: 260px;
+	overflow-y: auto;
+}
+
+.viewedItem {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	border: 1px solid var(--border-color, #eef0f3);
+	border-radius: 8px;
+	padding: 8px 10px;
+}
+
+.viewedInfo {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.viewedTitle {
+	font-size: 12.5px;
+	font-weight: 600;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.viewedMeta {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex-wrap: wrap;
+	margin-top: 3px;
+	font-size: 11.5px;
+	color: #94a3b8;
+}
+
+.viewedPick {
+	flex: 0 0 auto;
+	width: 28px;
+	height: 28px;
+	border: 1px solid var(--border-color, #eef0f3);
+	border-radius: 7px;
+	background: none;
+	cursor: pointer;
+	color: var(--primary, #2563eb);
+	transition: background .15s, color .15s, border-color .15s;
+
+	&:hover {
+		background: var(--primary, #2563eb);
+		border-color: var(--primary, #2563eb);
+		color: #fff;
+	}
+}
+
+/* Quick-pick BĐS gợi ý (thay ô select trơn cho trường "Bất động sản") — hàng gọn, ảnh nhỏ bên trái */
+.suggestList {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	max-height: 190px;
+	overflow-y: auto;
+}
+
+.suggestItem {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	border: 1px solid var(--border-color, #eef0f3);
+	border-radius: 8px;
+	padding: 6px 8px;
+	cursor: pointer;
+	background: #fff;
+	transition: border-color .15s, box-shadow .15s;
+
+	&:hover {
+		border-color: var(--primary, #2563eb);
+	}
+}
+
+.suggestItemActive {
+	border-color: var(--primary, #2563eb);
+	box-shadow: 0 0 0 2px rgba(37, 99, 235, .15);
+}
+
+.suggestThumb {
+	display: flex;
+	flex: 0 0 auto;
+	align-items: center;
+	justify-content: center;
+	width: 36px;
+	height: 36px;
+	border-radius: 6px;
+	overflow: hidden;
+	background: #e9eefb;
+	color: #9aa7c7;
+	font-size: 12px;
+
+	img { width: 100%; height: 100%; object-fit: cover; }
+}
+
+.suggestInfo {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.suggestTitle {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+}
+
+.suggestCode {
+	flex: 0 0 auto;
+	font-size: 10.5px;
+	font-weight: 700;
+	color: var(--primary, #2563eb);
+}
+
+.suggestName {
+	flex: 1 1 auto;
+	font-size: 12px;
+	font-weight: 600;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.suggestPrice {
+	font-size: 11px;
+	font-weight: 600;
+	color: #ef4444;
+	margin-top: 1px;
+}
+
+.suggestCheck {
+	flex: 0 0 auto;
+	color: var(--primary, #2563eb);
+	font-size: 13px;
+}

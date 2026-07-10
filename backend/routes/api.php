@@ -311,6 +311,22 @@ Route::namespace('App\Controllers\Api')
 
 /**
 |--------------------------------------------------------------------------
+| Trung tâm multi-tenant (GĐ4 Bước 0) — cấp phát & liệt kê sàn
+|--------------------------------------------------------------------------
+| Đặt ở ROOT (ngoài /{key}). KHÔNG jwt — gate bằng UTILS_API_OPEN như utils/database
+| (thao tác bootstrap tạo bộ bảng cho sàn mới). Xem App\Controllers\Api\CentralApi.
+*/
+Route::namespace('App\Controllers\Api')
+    ->prefix('api/central')
+    ->group(function ()
+    {
+        Route::get('/tenants', 'CentralApi@tenants')->name('api.central.tenants');
+        Route::post('/provision', 'CentralApi@provision')->name('api.central.provision');
+        Route::post('/rebuild-cache', 'CentralApi@rebuildCache')->name('api.central.rebuildCache');
+    });
+
+/**
+|--------------------------------------------------------------------------
 | Thông báo in-app — cần JWT token (thông báo của CHÍNH user, không cần cap)
 |--------------------------------------------------------------------------
 | Ghi bởi Services\Notification\Notifier từ các tiến trình nền. FE poll hiển thị chuông.

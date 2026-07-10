@@ -1,6 +1,7 @@
 import {useContext, useMemo, useState} from "react";
 import {App as AntdApp, Tag} from "antd";
 import dayjs from "dayjs";
+import {homePrefix} from "~/utils";
 import {AppContext} from "~/context/AppProvider";
 import {useCan} from "~/hooks";
 import {FontAwesomeIcon} from "~/components";
@@ -82,7 +83,8 @@ function PropertyDetailPanel({property, canEdit, onEdit, onMedia}) {
 
 	// Copy link công khai của BĐS (gửi khách xem, không cần đăng nhập) → /p/{code}.
 	const copyPublicLink = async () => {
-		const url = window.location.origin + (process.env.REACT_APP_HOMEPAGE || '') + '/p/' + encodeURIComponent(p.code || '');
+		// Link công khai chia sẻ ra ngoài (không qua Router) → tự chèn tenant key qua homePrefix.
+		const url = window.location.origin + homePrefix() + '/p/' + encodeURIComponent(p.code || '');
 		try {
 			await navigator.clipboard.writeText(url);
 			notification.success({message: 'Đã copy link', description: 'Link công khai đã sao chép, gửi cho khách xem.'});

@@ -1,9 +1,11 @@
 import axios from "axios";
 
 import {memoizedRefreshToken} from "./refreshToken";
+import {apiBaseURL, homePrefix, tstore} from "./tenant";
 
 const axiosConfig = {
-	baseURL: process.env.REACT_APP_SERVICE_URL,
+	// Multi-tenant: chèn /{key} vào base khi bật (apiBaseURL). 1-sàn = REACT_APP_SERVICE_URL như cũ.
+	baseURL: apiBaseURL(),
 	headers: {
 		'Content-Type': 'application/json',
 	}
@@ -18,9 +20,10 @@ const AUTH_ENDPOINTS = ['auth/login', 'auth/refresh'];
 const isAuthEndpoint = (url = '') => AUTH_ENDPOINTS.some((path) => url.includes(path));
 
 // Đọc access_token an toàn — giá trị hỏng trong storage không được làm gãy request.
+// tstore: key namespaced theo tenant (2 sàn cùng trình duyệt không đè token nhau).
 const getStoredToken = () => {
 	try {
-		return JSON.parse(localStorage.getItem('access_token') || 'null');
+		return JSON.parse(tstore.get('access_token') || 'null');
 	} catch (e) {
 		return null;
 	}
@@ -31,7 +34,7 @@ request.interceptors.request.use(
 
 		const storedToken = getStoredToken();
 
-		const loginAsToken = localStorage.getItem('access_token_as');
+		const loginAsToken = tstore.get('access_token_as');
 
 		if (storedToken?.accessToken) {
 			config.headers = {
@@ -61,8 +64,8 @@ request.interceptors.response.use(
 		// âm thầm rơi về tài khoản gốc. Xoá trạng thái mạo danh (key theo utils/loginAs.js)
 		// rồi reload để AppProvider nạp lại danh tính gốc — KHÔNG đá về /login vì phiên gốc còn.
 		if (error?.response?.status === 409 && error?.response?.data?.message === 'LOGIN_AS_EXPIRED') {
-			localStorage.removeItem('access_token_as');
-			localStorage.removeItem('login_as_user');
+			tstore.remove('access_token_as');
+			tstore.remove('login_as_user');
 			window.location.reload();
 			return Promise.reject(error);
 		}
@@ -95,8 +98,8 @@ request.interceptors.response.use(
 			// Refresh THẤT BẠI = phiên chết hẳn → thoát phiên toàn cục: xoá storage
 			// (refreshToken đã clear, clear lại cho chắc) + full reload về /login.
 			// Không làm vậy thì app đứng nguyên, polling spam 401 tới khi user tự F5.
-			localStorage.clear();
-			window.location.assign((process.env.REACT_APP_HOMEPAGE || '') + '/login');
+			tstore.clear();
+			window.location.assign(homePrefix() + '/login');
 		}
 
 		return Promise.reject(error);

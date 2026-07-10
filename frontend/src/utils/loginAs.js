@@ -9,19 +9,20 @@
  * Đổi danh tính → reload trang để AppProvider nạp lại current + permissions + xóa cache.
  */
 import request from "./http";
+import {tstore, homePrefix} from "./tenant";
 
 const TOKEN_KEY = 'access_token_as';
 const USER_KEY  = 'login_as_user';
 
 /** Đang mạo danh một tài khoản khác? */
 export function isLoginAs() {
-	return Boolean(localStorage.getItem(TOKEN_KEY));
+	return Boolean(tstore.get(TOKEN_KEY));
 }
 
 /** Thông tin tài khoản đang mạo danh (để hiển thị banner), hoặc null. */
 export function getLoginAsUser() {
 	try {
-		const raw = localStorage.getItem(USER_KEY);
+		const raw = tstore.get(USER_KEY);
 		return raw ? JSON.parse(raw) : null;
 	} catch (e) {
 		return null;
@@ -30,19 +31,19 @@ export function getLoginAsUser() {
 
 /** Lưu token + thông tin tài khoản đích (không reload). */
 export function setLoginAs(token, user) {
-	localStorage.setItem(TOKEN_KEY, token);
-	localStorage.setItem(USER_KEY, JSON.stringify(user || {}));
+	tstore.set(TOKEN_KEY, token);
+	tstore.set(USER_KEY, JSON.stringify(user || {}));
 }
 
 /** Xóa trạng thái mạo danh (không reload). */
 export function clearLoginAs() {
-	localStorage.removeItem(TOKEN_KEY);
-	localStorage.removeItem(USER_KEY);
+	tstore.remove(TOKEN_KEY);
+	tstore.remove(USER_KEY);
 }
 
-/** Đưa trình duyệt về trang chủ (kèm router base path) và reload toàn bộ app. */
+/** Đưa trình duyệt về trang chủ (kèm router base path + tenant key) và reload toàn bộ app. */
 function reloadHome() {
-	window.location.assign((process.env.REACT_APP_HOMEPAGE || '') + '/');
+	window.location.assign(homePrefix() + '/');
 }
 
 /** Bắt đầu / chuyển sang mạo danh tài khoản đích rồi reload. */

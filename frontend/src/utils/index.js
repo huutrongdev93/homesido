@@ -3,3 +3,4 @@ export * from './auth';
 export * from './notification';
 export * from './avatar';
 export * from './loginAs';
+export * from './tenant';

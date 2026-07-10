@@ -1,15 +1,16 @@
 import {authApi} from "~/api";
+import {tstore, homePrefix} from "./tenant";
 
 export function checkAuthorization () {
-	// attempt to grab the token from localstorage
-	const storedToken = localStorage.getItem('access_token');
+	// attempt to grab the token from localstorage (namespaced theo tenant)
+	const storedToken = tstore.get('access_token');
 	// if it exists
 	return !!storedToken;
 }
 
 export function getAuthorization () {
-	// attempt to grab the token from localstorage
-	const storedToken = localStorage.getItem('access_token');
+	// attempt to grab the token from localstorage (namespaced theo tenant)
+	const storedToken = tstore.get('access_token');
 
 	// if it exists
 	if (storedToken) {
@@ -42,7 +43,7 @@ export async function logout () {
 		]);
 	} catch (e) { /* revoke lỗi cũng vẫn đăng xuất local */ }
 
-	localStorage.clear();
+	tstore.clear();
 
-	window.location.assign((process.env.REACT_APP_HOMEPAGE || '') + '/login');
+	window.location.assign(homePrefix() + '/login');
 }

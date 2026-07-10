@@ -236,21 +236,10 @@ class UtilsApi extends Controller
         $this->ensureOpen();
 
         // Mỗi file là 1 lớp Migration ẩn danh với up() được guard bằng schema()->hasTable()/
-        // hasColumn(), nên gọi lại nhiều lần vẫn an toàn. Module mới thêm 1 dòng vào mảng.
-        $migrations = [
-            'database/database.php',
-            'database/crm.php',
-            'database/care-sequence.php',
-            'database/media.php',
-            'database/property-media-audio.php',
-            'database/property.php',
-            'database/property-unique-code.php',
-            'database/matching.php',
-            'database/matching-scan.php',
-            'database/appointment.php',
-            'database/deal.php',
-            'database/deal-history.php',
-        ];
+        // hasColumn(), nên gọi lại nhiều lần vẫn an toàn. Danh sách gom ở database/migrations.php
+        // (dùng chung với TenantProvisioner — module mới thêm 1 dòng ở ĐÓ, không sửa ở đây).
+        // Chạy dưới prefix của tenant ĐANG resolve theo URL (index.php đã set DB_PREFIX).
+        $migrations = require __ROOT__ . 'database/migrations.php';
 
         foreach ($migrations as $migrationFile)
         {

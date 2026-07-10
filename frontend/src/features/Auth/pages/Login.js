@@ -1,11 +1,12 @@
 import className from 'classnames/bind';
 import style from '../style/Login.module.scss';
-import {useEffect} from "react";
+import {useEffect, useState} from "react";
 import {useSelector} from "react-redux";
 import {App as AntdApp} from "antd";
-import {AuthLoginForm} from "~/features/Auth/components";
+import {AuthLoginForm, CentralLoginForm} from "~/features/Auth/components";
 import {authErrorSelector} from "~/reduxs/Auth/authSlice";
 import {globalNavigate} from "~/routes/GlobalHistory";
+import {tstore, isTenancyEnabled, getTenantKey} from "~/utils";
 import {FontAwesomeIcon} from "~/components";
 
 const cn = className.bind(style);
@@ -22,7 +23,16 @@ function Login() {
 
     const error = useSelector(authErrorSelector);
 
-    const isLoggedIn = Boolean(localStorage.getItem('access_token'));
+    const isLoggedIn = Boolean(tstore.get('access_token'));
+
+    // Login TRUNG TÂM: đang bật multi-tenant nhưng URL chưa có mã sàn (ở root /login) → cho CHỌN cách đăng nhập.
+    // Ngược lại (đã ở /{key}/login, hoặc chạy 1-sàn) → form đăng nhập thường vào đúng sàn của URL.
+    const showCentral = isTenancyEnabled() && !getTenantKey();
+
+    // Ở trang login trung tâm: 'personal' = tài khoản cá nhân (pool chung, KHÔNG cần mã sàn) ·
+    // 'agency' = đăng nhập vào một sàn riêng (nhập mã sàn). Mặc định cá nhân cho gọn.
+    const [mode, setMode] = useState('personal');
+    const isAgency = mode === 'agency';
 
     useEffect(() => {
         if (error) {
@@ -93,10 +103,28 @@ function Login() {
                     </div>
                     <div className={cn('login-heading')}>
                         <h1>Chào mừng trở lại 👋</h1>
-                        <p>Đăng nhập để tiếp tục.</p>
+                        <p>{!showCentral
+                            ? 'Đăng nhập để tiếp tục.'
+                            : isAgency
+                                ? 'Nhập mã sàn và tài khoản để tiếp tục.'
+                                : 'Đăng nhập tài khoản cá nhân của bạn.'}</p>
                     </div>
                     <div className={cn('login-form-inner')}>
-                        <AuthLoginForm/>
+                        {showCentral && (
+                            <div className={cn('login-mode-tabs')} role="tablist">
+                                <button type="button" role="tab" aria-selected={!isAgency}
+                                        className={cn('login-mode-tab', {active: !isAgency})}
+                                        onClick={() => setMode('personal')}>
+                                    <FontAwesomeIcon icon="fa-light fa-user"/> Cá nhân
+                                </button>
+                                <button type="button" role="tab" aria-selected={isAgency}
+                                        className={cn('login-mode-tab', {active: isAgency})}
+                                        onClick={() => setMode('agency')}>
+                                    <FontAwesomeIcon icon="fa-light fa-building"/> Sàn
+                                </button>
+                            </div>
+                        )}
+                        {showCentral && isAgency ? <CentralLoginForm/> : <AuthLoginForm/>}
                     </div>
                     <div className={cn('login-footer')}>
                         <div>© {new Date().getFullYear()} Base App.</div>

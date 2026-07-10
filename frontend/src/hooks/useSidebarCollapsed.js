@@ -1,4 +1,5 @@
 import {useCallback, useEffect, useState} from "react";
+import {tstore} from "~/utils";
 
 const STORAGE_KEY = 'base.sidebar.collapsed';
 
@@ -12,7 +13,7 @@ const STORAGE_KEY = 'base.sidebar.collapsed';
 function useSidebarCollapsed(defaultCollapsed)
 {
 	const [state, setState] = useState(() => {
-		const stored = localStorage.getItem(STORAGE_KEY);
+		const stored = tstore.get(STORAGE_KEY);
 		return {
 			hasStored: stored !== null,
 			collapsed: stored !== null ? stored === '1' : Boolean(defaultCollapsed),
@@ -25,7 +26,7 @@ function useSidebarCollapsed(defaultCollapsed)
 
 	const toggle = useCallback(() => {
 		setState((prev) => {
-			localStorage.setItem(STORAGE_KEY, prev.collapsed ? '0' : '1');
+			tstore.set(STORAGE_KEY, prev.collapsed ? '0' : '1');
 			return {hasStored: true, collapsed: !prev.collapsed};
 		});
 	}, []);

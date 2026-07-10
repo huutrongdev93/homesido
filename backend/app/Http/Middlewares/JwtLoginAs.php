@@ -24,6 +24,14 @@ use SkillDo\Http\Request;
  *  - `user`          → tài khoản hiệu lực (mạo danh nếu hợp lệ, ngược lại = gốc) → Auth::user().
  *  - `original_user` → luôn là tài khoản gốc (Authorization).
  *  - `is_login_as`   → true khi đang mạo danh.
+ *
+ * MULTI-TENANT (GĐ4): JWT ký bằng secret DÙNG CHUNG toàn cụm nên token sàn A vẫn hợp lệ CHỮ KÝ ở
+ * sàn B. Việc cô lập KHÔNG dựa vào claim mà dựa vào KIẾN TRÚC prefix: `TokenRepository::decode()`
+ * gọi `find()` → truy vấn bảng `{prefix}oauth_access_tokens` của tenant ĐANG resolve (index.php đã
+ * set env DB_PREFIX) và cache dò token nằm trong THƯ MỤC CACHE RIÊNG của tenant (index.php rebind
+ * path.cache). ⇒ token sàn A đưa sang sàn B: cache-miss + không có dòng trong bảng của B → decode
+ * ném lỗi → 401. TUYỆT ĐỐI không thêm cache token dùng chung giữa các tenant, sẽ phá cô lập này.
+ * Xem docs/features/multi-tenant.md §"Cô lập token & cache".
  */
 class JwtLoginAs
 {

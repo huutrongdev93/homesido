@@ -6,7 +6,8 @@ import {
 	handleRequest,
 	isLoginAs,
 	getLoginAsUser,
-	clearLoginAs
+	clearLoginAs,
+	tstore
 } from "~/utils";
 import {Loading} from "../components";
 import {useViewport} from "~/hooks";
@@ -62,8 +63,8 @@ function AppProvider({ children }) {
 
 					dispatch(authActions.loginSuccess(responseUser.data?.user));
 
-					/* Các Thông tin khác */
-					let utilitiesDataKey = localStorage.getItem('utilities-key');
+					/* Các Thông tin khác (cache namespaced theo tenant) */
+					let utilitiesDataKey = tstore.get('utilities-key');
 
 					if (responseUser.data.utilitiesKey === null || responseUser.data.utilitiesKey !== utilitiesDataKey)
 					{
@@ -79,23 +80,23 @@ function AppProvider({ children }) {
 
 							// Chỉ lưu key khi có giá trị thật — tránh lưu "undefined"/"null".
 							if (responseUser.data?.utilitiesKey) {
-								localStorage.setItem('utilities-key', responseUser.data.utilitiesKey);
+								tstore.set('utilities-key', responseUser.data.utilitiesKey);
 							}
-							localStorage.setItem('rolesData', JSON.stringify(roles));
-							localStorage.setItem('appData', JSON.stringify(data));
+							tstore.set('rolesData', JSON.stringify(roles));
+							tstore.set('appData', JSON.stringify(data));
 							setAppData(data);
 							setRolesData(roles);
 						}
 					}
 					else
 					{
-						setAppData(safeParse(localStorage.getItem('appData')) ?? []);
-						setRolesData(safeParse(localStorage.getItem('rolesData')) ?? []);
+						setAppData(safeParse(tstore.get('appData')) ?? []);
+						setRolesData(safeParse(tstore.get('rolesData')) ?? []);
 					}
 				}
 				else
 				{
-					localStorage.clear();
+					tstore.clear();
 					dispatch(authActions.logout());
 				}
 				setLoading(false);

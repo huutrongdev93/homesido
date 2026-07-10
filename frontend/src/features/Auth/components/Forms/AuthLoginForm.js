@@ -12,7 +12,7 @@ import {
 import {InputField} from "~/components/Forms";
 import {authActions} from "~/reduxs/Auth/authSlice";
 import {AppContext} from "~/context/AppProvider";
-import {apiError, handleRequest} from "~/utils";
+import {apiError, handleRequest, tstore} from "~/utils";
 import {authApi} from "~/api";
 import {globalNavigate} from "~/routes/GlobalHistory";
 
@@ -45,8 +45,8 @@ function AuthLoginForm() {
 				accessToken   : response.accessToken,
 				expires       : response.expires,
 			}
-			localStorage.setItem('access_token', JSON.stringify(accessToken));
-			localStorage.setItem('reload_token', response.refreshToken);
+			tstore.set('access_token', JSON.stringify(accessToken));
+			tstore.set('reload_token', response.refreshToken);
 			dispatch(authActions.loginSuccess(response.data.user))
 			setUserLogin(true);
 			globalNavigate("/");

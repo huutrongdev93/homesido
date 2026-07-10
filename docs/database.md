@@ -208,9 +208,37 @@ Hàng đợi gửi push. Notifier ghi in-app xong → enqueue 1 dòng/subscripti
 | `sent_at` | datetime | |
 | `created` | datetime | index `(status, id)` |
 
+## 3b. Bảng TRUNG TÂM multi-tenant (Giai đoạn 4) — prefix cố định `core_`
+
+Nguồn: `database/tenant.php`. **KHÔNG theo tenant** — nằm ở prefix CỐ ĐỊNH `core_` (hằng
+`TenantResolver::CENTRAL_PREFIX`), tách khỏi bộ bảng của từng sàn. Tạo/ghi bởi
+`App\Services\Tenant\TenantProvisioner` (không nằm trong `database/migrations.php`). Xem
+[`features/multi-tenant.md`](features/multi-tenant.md).
+
+### `tenants` — Sổ đăng ký các sàn (tenant)
+Mỗi dòng = 1 sàn. `slug` resolve theo segment đầu URL (`domain.com/{slug}/...`); `db_prefix` =
+prefix bộ bảng của sàn (vd `sana_`). Model: dùng query builder trực tiếp (chưa có Eloquent model).
+
+| Cột | Kiểu | Ghi chú |
+|---|---|---|
+| `id` | bigint PK | |
+| `slug` | varchar(30) **unique** | path key, `[a-z0-9-]{3,30}`, không trùng RESERVED |
+| `name` | varchar(255) utf8mb4 | tên sàn hiển thị |
+| `db_prefix` | varchar(64) **unique** | prefix bộ bảng của sàn (vd `sana_`) |
+| `plan_code` | varchar(50) | trỏ `plans.code` (bảng `plans` làm ở Bước 2; PoC để trống) |
+| `expires_at` | datetime nullable | hạn gói (NULL=chưa đặt) — Bước 2 khóa thao tác khi quá hạn |
+| `status` | varchar(20) | `active`/`suspended`… (suspended vẫn resolve để hiện màn gia hạn) |
+| `created` / `updated` | datetime | house-style |
+
+> **Cache map**: `bootstrap/cache/tenants.php` (sinh tự động bởi Provisioner) map `slug=>db_prefix`
+> để `index.php` resolve tenant KHỎI query DB mỗi request; cache miss → query `core_tenants` rồi ghi lại.
+
 ## 4. Bảng nghiệp vụ — Giai đoạn 1 (Core CRM)
 
-Nguồn: `database/crm.php` (đăng ký thứ 2 trong `$migrations`). **Không multi-tenant** (1 deployment = 1 sàn, không có `tenant_id`). Timestamps house-style (`created`/`updated`). Soft delete (`trash`) cho `customers` + `properties`. Người tạo (`user_created`) Model tự điền. Địa giới 2 cấp tỉnh→phường (int, qua `LocationApi`) — không có cấp quận/huyện. `property_type` là `string` (danh sách loại hình khai ở `api/utils`).
+Nguồn: `database/crm.php` (đăng ký thứ 2 trong `$migrations`). **Không cột `tenant_id`** — cô lập
+đa sàn theo PREFIX (mỗi sàn 1 bộ bảng riêng cùng DB), KHÔNG chung bảng. Ghi chú "1 deployment = 1
+sàn" ở đầu `crm.php` nay đã đảo (xem [`features/multi-tenant.md`](features/multi-tenant.md)) nhưng
+schema giữ nguyên 100% (không thêm cột) nên các bảng dưới đây không đổi. Timestamps house-style (`created`/`updated`). Soft delete (`trash`) cho `customers` + `properties`. Người tạo (`user_created`) Model tự điền. Địa giới 2 cấp tỉnh→phường (int, qua `LocationApi`) — không có cấp quận/huyện. `property_type` là `string` (danh sách loại hình khai ở `api/utils`).
 
 ### `lead_sources` — Nguồn khách
 `id` · `name` (utf8mb4) · `is_active` tinyint(1) · `created` · `updated`.

@@ -316,6 +316,45 @@
     }
 }
 
+/* Toggle chọn cách đăng nhập (Cá nhân / Sàn) ở trang login trung tâm */
+.login-mode-tabs
+{
+    display: flex;
+    gap: 6px;
+    padding: 5px;
+    margin-bottom: 22px;
+    border-radius: 14px;
+    background: rgba(var(--grey-code), 0.10);
+    border: 1px solid rgba(var(--grey-code), 0.14);
+
+    .login-mode-tab
+    {
+        flex: 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 10px 12px;
+        border: none;
+        border-radius: 10px;
+        background: transparent;
+        color: #55636f;
+        font-size: 0.92rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background .2s ease, color .2s ease, box-shadow .2s ease;
+
+        &:hover { color: #16202b; }
+
+        &.active
+        {
+            background: #fff;
+            color: var(--primary);
+            box-shadow: 0 6px 16px -8px rgba(13, 71, 117, 0.35);
+        }
+    }
+}
+
 .login-form-inner
 {
     :global(.form-group)
